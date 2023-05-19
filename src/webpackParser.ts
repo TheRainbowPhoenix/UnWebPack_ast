@@ -3,7 +3,6 @@ import FileParser from "./fileParser";
 import traverse, { NodePath } from "@babel/traverse";
 import fs from "fs-extra";
 import * as bblp from "@babel/parser";
-import generator from "@babel/generator";
 import {
   isFunctionExpression,
   File,
@@ -29,7 +28,7 @@ import {
   isLogicalExpression,
 } from "@babel/types";
 
-export type Module = any;
+import type Module from "./module";
 
 export default class WebpackParser implements FileParser {
   private isWebpackFile = (file: string) =>
@@ -45,9 +44,9 @@ export default class WebpackParser implements FileParser {
     }
   }
 
-  async parse(filename: any): Promise<any[]> {
+  async parse(filename: any): Promise<Module[]> {
     const file = await fs.readFile(filename, "utf-8");
-    const ast = bblp.parse(file);
+    const ast: bblp.ParseResult<File> = bblp.parse(file);
 
     const modules: Module[] = [];
 
@@ -56,32 +55,10 @@ export default class WebpackParser implements FileParser {
     return modules;
   }
 
-  protected parseAst(ast: File, modules: Module[]): void {
+  protected parseAst(ast: bblp.ParseResult<File>, modules: Module[]): void {
     // let argument;
 
     traverse(ast, {
-      /* ExpressionStatement(path) {
-        const { expression }: any = path.node;
-        // console.log(expression);
-        console.log(
-          expression.type,
-          expression.callee?.type,
-          expression.callee?.operator,
-          expression.callee?.argument?.type,
-          expression.arguments?.length
-        );
-        if (
-          expression.type === "CallExpression" &&
-          expression.callee.type === "UnaryExpression" &&
-          expression.callee.operator === "!" &&
-          expression.callee.argument.type === "FunctionExpression" &&
-          expression.arguments.length === 1 &&
-          expression.arguments[0].type === "ArrayExpression"
-        ) {
-          argument = expression.arguments[0];
-          console.log(false && argument);
-        }
-      }, */
       CallExpression: (nodePath) => {
         const firstArg = nodePath.get("arguments")[0];
         // console.log(firstArg);
@@ -91,7 +68,7 @@ export default class WebpackParser implements FileParser {
           firstArg?.isArrayExpression()
         ) {
           // entrypoint
-          console.log("firstArg !!");
+          //   console.log("firstArg !!");
 
           //   console.log(generator(firstArg.node).code);
 
@@ -102,7 +79,7 @@ export default class WebpackParser implements FileParser {
   }
 
   private parseArray(
-    file: File,
+    file: bblp.ParseResult<File>,
     ast: NodePath<ArrayExpression>,
     modules: Module[]
   ): void {
@@ -185,13 +162,13 @@ export default class WebpackParser implements FileParser {
         i: i,
         deps: depIndex,
       };
-      console.log("require: ", depIndex);
+      //   console.log("require: ", depIndex);
 
       this.cleanES6Object(element);
       this.cleanES6Import(element);
       this.cleanImports(element);
 
-      console.log(generator(element.node).code);
+      //   console.log(generator(element.node).code);
 
       modules[i] = mod;
     });
@@ -292,11 +269,11 @@ export default class WebpackParser implements FileParser {
 
         const isDefault = left.property.name === "default";
         const generatedExport = this.generateES6Export(path.node, isDefault);
-        console.debug(">> generatedExport ", generatedExport === null);
+        // console.debug(">> generatedExport ", generatedExport === null);
         if (!generatedExport) return;
 
         if (isExpressionStatement(path.parent)) {
-          console.debug("replaceWith generatedES6Export");
+          //   console.debug("replaceWith generatedES6Export");
           path.parentPath.replaceWith(generatedExport);
           // } else if (isFunctionExpression(path.node.right) && path.parentPath.isVariableDeclarator() && isIdentifier(path.parentPath.node.id)) {
           //     path.scope.rename(
@@ -347,19 +324,9 @@ export default class WebpackParser implements FileParser {
         )
       );
     }
-    console.debug(
-      "isIdentifier",
-      isIdentifier(node.right),
-      "isDefault",
-      isDefault
-    );
     if (isIdentifier(node.right) && isDefault) {
       return exportDefaultDeclaration(node.right);
     }
     return null;
   }
-
-  //   private moduleToES6Import() {}
 }
-
-// parse(args)
