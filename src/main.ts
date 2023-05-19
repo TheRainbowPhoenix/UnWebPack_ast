@@ -2,7 +2,7 @@ import fsExtra from "fs-extra";
 import WebpackParser from "./webpackParser";
 
 async function start() {
-  let inFile = "../test.min.js";
+  let inFile = "./test/test.min.js";
 
   console.log("Reading files...");
 
