@@ -1,9 +1,9 @@
 import fsExtra from "fs-extra";
-import WebpackParser from "./webpackParser";
+import WebpackParser from "./webpackParser.ts";
 import generator from "@babel/generator";
 import { ESLint } from "eslint";
 import prettier from "prettier";
-import eslintConfig from "./eslintConfig";
+import eslintConfig from "./eslintConfig.ts";
 
 // super-simple comment stripper (no deps)
 function stripJsoncSimple(raw: string): string {

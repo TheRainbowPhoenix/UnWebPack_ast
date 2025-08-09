@@ -1,5 +1,5 @@
-import { ensureDir } from "https://deno.land/std@0.224.0/fs/ensure_dir.ts";
-import { exists } from "https://deno.land/std@0.224.0/fs/exists.ts";
+import { ensureDir } from "jsr:@std/fs/ensure-dir";
+import { exists } from "jsr:@std/fs/exists";
 import WebpackParser from "./webpackParser.ts";
 
 import _generator from "npm:@babel/generator";

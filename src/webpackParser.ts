@@ -1,4 +1,4 @@
-import FileParser from "./fileParser";
+import FileParser from "./fileParser.ts";
 
 import traverse, { NodePath } from "@babel/traverse";
 import fs from "fs-extra";

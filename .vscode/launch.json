@@ -5,17 +5,23 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Attach Deno",
+            "type": "node",
+            "request": "attach",
+            "port": 9229,
+            "restart": true,
+            "timeout": 30000,
+        },
+        
+        {
+            "name": "Deno",
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}\\src\\main.ts",
-            "preLaunchTask": "tsc: build - tsconfig.json",
-            "outFiles": [
-                "${workspaceFolder}/out/**/*.js"
-            ]
+            "cwd": "${workspaceFolder}/deno",
+            "runtimeExecutable": "deno",
+            "runtimeArgs": ["run", "--inspect-brk", "-A", "src\\main.ts"],
+            "attachSimplePort": 9229,
+            "outputCapture": "std"
         }
     ]
 }

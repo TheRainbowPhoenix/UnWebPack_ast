@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+      "strict": true
+    },
+    "tasks": {
+      "start": "deno run -A src/main.ts",
+      "debug": "deno run --inspect-wait -A src/main.ts"
+    }
+}
