@@ -83,6 +83,157 @@ export default class WebpackParser implements FileParser {
     });
   }
 
+  private demangleVoid0(fnPath: NodePath<FunctionExpression | ArrowFunctionExpression>) {
+    const isVoid0 = (n: t.Node) => t.isUnaryExpression(n, { operator: "void" }) && t.isNumericLiteral(n.argument, { value: 0 });
+
+    fnPath.traverse({
+      UnaryExpression: (p) => {
+        if (isVoid0(p.node)) p.replaceWith(t.identifier("undefined"));
+      },
+      BinaryExpression: (p) => {
+        const { node } = p;
+        if ((node.operator === "===" || node.operator === "==" || node.operator === "!==" || node.operator === "!=") &&
+            (isVoid0(node.left) || isVoid0(node.right))) {
+          if (isVoid0(node.left)) node.left = t.identifier("undefined");
+          if (isVoid0(node.right)) node.right = t.identifier("undefined");
+          p.replaceWith(node);
+        }
+      },
+    });
+  }
+
+  private normalizeYoda(fnPath: NodePath<FunctionExpression | ArrowFunctionExpression>) {
+    fnPath.traverse({
+      BinaryExpression: (bp) => {
+        const { node } = bp;
+        if (!["===", "==", "!==", "!="].includes(node.operator)) return;
+        const leftConst =
+          t.isLiteral(node.left as any) || t.isIdentifier(node.left, { name: "undefined" });
+        const rightVar =
+          t.isIdentifier(node.right) || t.isMemberExpression(node.right);
+        if (leftConst && rightVar) {
+          bp.replaceWith(t.binaryExpression(node.operator, node.right as any, node.left as any));
+        }
+      },
+    });
+  }
+
+  private renameBindingIn(fnPath: NodePath<any>, oldName: string, desired: string): string {
+    const scope = fnPath.scope;
+    let finalName = desired;
+    if (desired !== oldName && scope.hasBinding(desired)) {
+      finalName = scope.generateUidIdentifier(desired).name; // e.g. _interopRequireDefault
+    }
+    scope.rename(oldName, finalName);
+    return finalName;
+  }
+
+  // is: function(x){ return x && x.__esModule ? x : { default: x } }
+  private isInteropRequireDefaultFn(fn: t.Function): boolean {
+    if (fn.params.length !== 1 || !t.isIdentifier(fn.params[0])) return false;
+    const p = (fn.params[0] as t.Identifier).name;
+
+    // get the single return expression (handles arrow expr body or block body)
+    let ret: t.Expression | null = null;
+    const body: any = (fn as any).body; // ArrowFunctionExpression can have Expression body
+    if (t.isBlockStatement(body)) {
+      const r = body.body.find(s => t.isReturnStatement(s)) as t.ReturnStatement | undefined;
+      ret = r?.argument ?? null;
+    } else {
+      ret = body as t.Expression;
+    }
+    if (!ret || !t.isConditionalExpression(ret)) return false;
+
+    const test = ret.test;
+    const cons = ret.consequent;
+    const alt  = ret.alternate;
+
+    const testOk =
+      t.isLogicalExpression(test, { operator: "&&" }) &&
+      t.isIdentifier(test.left, { name: p }) &&
+      t.isMemberExpression(test.right) &&
+      t.isIdentifier(test.right.object, { name: p }) &&
+      t.isIdentifier(test.right.property, { name: "__esModule" });
+
+    const consOk = t.isIdentifier(cons, { name: p });
+    const altOk =
+      t.isObjectExpression(alt) &&
+      alt.properties.length === 1 &&
+      t.isObjectProperty(alt.properties[0]) &&
+      !alt.properties[0].computed &&
+      t.isIdentifier(alt.properties[0].key, { name: "default" }) &&
+      t.isIdentifier(alt.properties[0].value, { name: p });
+
+    return testOk && consOk && altOk;
+  }
+
+  // Rename the interop helper (d -> interopRequireDefault), return its final name
+  private renameInteropHelper(
+    fnPath: NodePath<FunctionExpression | ArrowFunctionExpression>
+  ): string | null {
+    let interopName: string | null = null;
+
+    // Only look at bindings defined in this module function's top scope
+    fnPath.get("body").traverse({
+      FunctionDeclaration: (p) => {
+        const id = p.node.id;
+        if (!id) return;
+        if (this.isInteropRequireDefaultFn(p.node)) {
+          interopName = this.renameBindingIn(fnPath, id.name, "interopRequireDefault");
+        }
+      },
+      VariableDeclarator: (p) => {
+        if (!t.isIdentifier(p.node.id)) return;
+        const init = p.node.init;
+        if (!init || (!t.isFunctionExpression(init) && !t.isArrowFunctionExpression(init))) return;
+        if (this.isInteropRequireDefaultFn(init)) {
+          interopName = this.renameBindingIn(fnPath, p.node.id.name, "interopRequireDefault");
+        }
+      },
+    }, fnPath);
+
+    return interopName;
+  }
+
+  // 2) Rename single-letter require/import bindings: r -> import_r, s -> require_s
+  private renameRequireBindings(
+    fnPath: NodePath<FunctionExpression | ArrowFunctionExpression>,
+    interopName: string | null
+  ) {
+    fnPath.get("body").traverse({
+      VariableDeclarator: (p) => {
+        const id = p.node.id;
+        if (!t.isIdentifier(id)) return;
+
+        // only single-letter names (you can relax this if you like)
+        if (id.name.length !== 1) return;
+
+        const init = p.node.init;
+        if (!init || !t.isCallExpression(init)) return;
+
+        // wrapped: interopRequireDefault(__webpack_require__(N))
+        const isWrappedRequire =
+          interopName != null &&
+          t.isIdentifier(init.callee, { name: interopName }) &&
+          init.arguments.length >= 1 &&
+          t.isCallExpression(init.arguments[0]) &&
+          t.isIdentifier((init.arguments[0] as t.CallExpression).callee, { name: "__webpack_require__" });
+
+        // direct: __webpack_require__(N) or __webpack_require__.n(...)
+        const isDirectRequire =
+          t.isIdentifier(init.callee, { name: "__webpack_require__" }) ||
+          (t.isMemberExpression(init.callee) &&
+          t.isIdentifier(init.callee.object, { name: "__webpack_require__" }));
+
+        if (isWrappedRequire) {
+          this.renameBindingIn(fnPath, id.name, `import_${id.name}`);
+        } else if (isDirectRequire) {
+          this.renameBindingIn(fnPath, id.name, `require_${id.name}`);
+        }
+      },
+    }, fnPath);
+  }
+
   private normalizeModuleParamNames(
     fnPath: NodePath<FunctionExpression | ArrowFunctionExpression>
   ) {
@@ -176,6 +327,14 @@ export default class WebpackParser implements FileParser {
             valPath as NodePath<FunctionExpression | ArrowFunctionExpression>
           );
           this.demangleMinifiedBooleans(valPath as NodePath<FunctionExpression | ArrowFunctionExpression>);
+          this.demangleVoid0(valPath);
+          // this.demangleNegatedIIFE(valPath);
+          // this.expandSequences(valPath);
+          this.normalizeYoda(valPath);
+
+          const interopName = this.renameInteropHelper(valPath);
+          this.renameRequireBindings(valPath, interopName);
+
 
           // push one record per chunk id
           for (const chunkId of chunkIds) {
