@@ -596,6 +596,7 @@
             const nodes = Object.values(data).map(mod => ({
                 id: mod.id,
                 filename: mod.filename,
+                label: mod.label,
                 dependencies: mod.dependencies,
                 dependents: mod.dependents,
                 x: Math.random() * 800,
@@ -622,7 +623,18 @@
                 .force("link", d3.forceLink(links).id(d => d.id).distance(120))
                 .force("charge", d3.forceManyBody().strength(-300))
                 .force("center", d3.forceCenter(width / 2, height / 2))
-                .force("collision", d3.forceCollide(60));
+                .force("collision", d3.forceCollide(60))
+                .alphaDecay(0.02) // Slower decay for initial settling
+                .velocityDecay(0.6); // Higher friction for less bouncing
+            
+            // Stop simulation after 10 seconds to allow free dragging
+            setTimeout(() => {
+                simulation.alphaTarget(0).restart();
+                setTimeout(() => {
+                    simulation.stop();
+                    console.log("Physics simulation stopped - nodes can now be freely dragged");
+                }, 2000);
+            }, 10000);
             
             // Create links
             const link = g.append("g")
@@ -728,7 +740,10 @@
         
         // Drag functions
         function dragstarted(event, d) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
+            // Only restart simulation if it's still running
+            if (simulation && simulation.alpha() > 0) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+            }
             d.fx = d.x;
             d.fy = d.y;
         }
@@ -736,12 +751,35 @@
         function dragged(event, d) {
             d.fx = event.x;
             d.fy = event.y;
+            
+            // If simulation is stopped, manually update positions
+            if (!simulation || simulation.alpha() === 0) {
+                d.x = event.x;
+                d.y = event.y;
+                
+                // Manually update the visual position
+                d3.select(event.sourceEvent.target.parentNode)
+                    .attr("transform", `translate(${d.x},${d.y})`);
+                
+                // Update connected links
+                g.selectAll(".link").attr("d", linkD => {
+                    if (linkD.source.id === d.id || linkD.target.id === d.id) {
+                        const dx = linkD.target.x - linkD.source.x;
+                        const dy = linkD.target.y - linkD.source.y;
+                        const dr = Math.sqrt(dx * dx + dy * dy);
+                        return `M${linkD.source.x},${linkD.source.y}A${dr},${dr} 0 0,1 ${linkD.target.x},${linkD.target.y}`;
+                    }
+                    return d3.select(this).attr("d");
+                });
+            }
         }
         
         function dragended(event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
+            if (simulation && simulation.alpha() > 0) {
+                if (!event.active) simulation.alphaTarget(0);
+            }
+            // Keep the node fixed at its dragged position
+            // Don't reset fx, fy so the node stays where dragged
         }
         
         // Zoom controls
