@@ -1,3 +1,477 @@
+- `eslintConfig.ts`
+```
+import { Linter } from "eslint";
+
+const eslintConfig: Linter.Config = {
+  env: {
+    node: true,
+  },
+  parserOptions: {
+    ecmaVersion: 2020,
+    sourceType: "module",
+  },
+  plugins: ["import", "node", "promise"],
+  extends: [
+    "eslint:recommended",
+    "plugin:import/recommended",
+    "plugin:node/recommended",
+    "plugin:promise/recommended",
+  ],
+  rules: {
+    "one-var": ["error", "never"],
+    "no-var": "error",
+    "prefer-const": [
+      "error",
+      {
+        destructuring: "any",
+        ignoreReadBeforeAssign: true,
+      },
+    ],
+    "prefer-arrow-callback": [
+      "error",
+      {
+        allowNamedFunctions: false,
+        allowUnboundThis: true,
+      },
+    ],
+    eqeqeq: ["error", "always", { null: "ignore" }],
+    semi: ["error", "always"],
+    "arrow-body-style": [
+      "error",
+      "as-needed",
+      {
+        requireReturnForObjectLiteral: false,
+      },
+    ],
+    "no-confusing-arrow": [
+      "error",
+      {
+        allowParens: true,
+      },
+    ],
+    "eol-last": ["error", "always"],
+    indent: [
+      "error",
+      2,
+      {
+        SwitchCase: 1,
+        VariableDeclarator: 1,
+        outerIIFEBody: 1,
+        // MemberExpression: null,
+        FunctionDeclaration: {
+          parameters: 1,
+          body: 1,
+        },
+        FunctionExpression: {
+          parameters: 1,
+          body: 1,
+        },
+        CallExpression: {
+          arguments: 1,
+        },
+        ArrayExpression: 1,
+        ObjectExpression: 1,
+        ImportDeclaration: 1,
+        flatTernaryExpressions: false,
+        ignoreComments: false,
+      },
+    ],
+    "object-shorthand": [
+      "error",
+      "always",
+      {
+        ignoreConstructors: false,
+        avoidQuotes: true,
+      },
+    ],
+    "comma-dangle": [
+      "error",
+      {
+        arrays: "always-multiline",
+        objects: "always-multiline",
+        imports: "always-multiline",
+        exports: "always-multiline",
+        functions: "always-multiline",
+      },
+    ],
+    "space-before-function-paren": [
+      "error",
+      {
+        anonymous: "always",
+        named: "never",
+        asyncArrow: "always",
+      },
+    ],
+    curly: ["error", "all"],
+    "block-spacing": ["error", "always"],
+    "brace-style": ["error", "1tbs", { allowSingleLine: true }],
+    yoda: "error",
+    "no-trailing-spaces": [
+      "error",
+      {
+        skipBlankLines: false,
+        ignoreComments: false,
+      },
+    ],
+    "prefer-template": "error",
+    "template-curly-spacing": "error",
+    "no-else-return": "error",
+    // "react/jsx-one-expression-per-line": "error",
+    "no-undef-init": "error",
+    "prefer-object-spread": "error",
+    "import/newline-after-import": "error",
+    "import/first": "error",
+    quotes: ["error", "single"],
+    "no-console": "off",
+    "no-unused-vars": "warn",
+    "import/order": [
+      "error",
+      {
+        groups: ["builtin", "external", "internal"],
+        "newlines-between": "always",
+      },
+    ],
+    "node/no-unsupported-features/es-syntax": "off",
+    "node/no-missing-import": "off",
+    "promise/always-return": "off",
+    "promise/no-nesting": "off",
+  },
+};
+
+export default eslintConfig;
+
+```
+
+- `fileParser.ts`
+```
+export type TODOTypeMe = any;
+
+export default interface FileParser {
+  /**
+   * Determines if this file can be parsed by the parser
+   * @param args args
+   */
+  isParseable(args: TODOTypeMe): Promise<boolean>;
+
+  /**
+   * Parses the file into module
+   * @param args args
+   */
+  parse(args: TODOTypeMe): Promise<TODOTypeMe[]>;
+}
+
+```
+
+- `main.ts`
+```
+import fsExtra from "fs-extra";
+import WebpackParser from "./webpackParser";
+import generator from "@babel/generator";
+import { ESLint } from "eslint";
+import prettier from "prettier";
+import eslintConfig from "./eslintConfig";
+
+// super-simple comment stripper (no deps)
+function stripJsoncSimple(raw: string): string {
+  const noBlock = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+  const noLine = noBlock.replace(/(^|[^:])\/\/.*$/gm, "$1");
+  return noLine;
+}
+
+async function loadAliasesJsonc(filePath: string) {
+  const raw = await fsExtra.readFile(filePath, "utf8");
+  const clean = stripJsoncSimple(raw);
+  return JSON.parse(clean);
+}
+
+async function start() {
+  let inFile = "../flare.rive.app/lib/Components.3babdd1411e10d21748a.js"; // "./test/test.min.js";
+  // let inFile = "../flare.rive.app/lib/vendor.max.js"; // "./test/test.min.js";
+
+  console.log("Reading files...");
+
+  if (!fsExtra.existsSync(inFile)) {
+    console.log(`${inFile} not exist!`);
+    process.exit(1);
+  }
+
+  fsExtra.ensureDirSync("out");
+
+  const eslint = new ESLint({
+    fix: true,
+    ignore: false,
+    useEslintrc: false,
+    extensions: [".js", ".jsx"],
+    overrideConfig: eslintConfig,
+  });
+
+  const aliases = await loadAliasesJsonc("webpack-aliases.jsonc");
+  // const aliases = JSON.parse(fsExtra.readFileSync("webpack-aliases.json", "utf-8"));
+
+  let parser = new WebpackParser();
+  parser.setAliasMap(aliases);
+
+  if (await parser.isParseable(inFile)) {
+    console.log(`Parsing ${inFile}...`);
+    let modules = await parser.parse(inFile);
+    modules.forEach(async (mod) => {
+      let code = generator(mod.element.node).code;
+      
+      // Doing ESLint
+      try {
+        const lintedCode = await eslint.lintText("export default " + code);
+        if (lintedCode[0].messages.length >0 ) {
+          for (let msg of lintedCode[0].messages) {
+            console.warn(`At line ${msg.line} : ${msg.message}`)
+          }
+        }
+        code = lintedCode[0].output ?? code;
+      } catch (e) {}
+
+      // Doing Prettier
+      try {
+        code = prettier.format(code, {
+          parser: "babel",
+          singleQuote: true,
+          printWidth: 180,
+        });
+      } catch (e) {}
+
+      // Writing code
+      if (mod.file == null) return;
+      const filePath = `out/mod_${mod.i}.js`;
+      if (
+        !fsExtra.existsSync(filePath) ||
+        fsExtra.readFileSync(filePath, "utf-8") !== code
+      ) {
+        console.log(`>> Generating ${filePath}...`);
+        fsExtra.writeFileSync(filePath, code);
+      }
+    });
+
+    // console.log(out);
+    // console.log(out[0].element.opts);
+  }
+
+  // await fileParserRouter.route(argValues);
+}
+
+start();
+
+```
+
+- `module.ts`
+```
+import { NodePath } from "@babel/traverse";
+import { FunctionExpression } from "@babel/types";
+
+export default interface Module {
+  file: any; // FIXME !!
+  element: NodePath<FunctionExpression>;
+  i: number;
+  deps: number[];
+}
+
+```
+
+- `out.md`
+```
+
+```
+
+- `webpackDeps.js`
+```
+// webpack-deps-babel.js - Babel-based dependency extractor
+
+import FileParser from "./fileParser";
+import traverse from "@babel/traverse";
+import fs from "fs-extra";
+import * as bblp from "@babel/parser";
+import {
+  isFunctionExpression,
+  File,
+  isIdentifier,
+  isNumericLiteral,
+  isCallExpression,
+} from "@babel/types";
+
+export default class WebpackDepsParser {
+  async isParseable(filename) {
+    try {
+      const file = await fs.readFile(filename, "utf-8");
+      return file.includes("webpackJsonp") || file.includes("push");
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async parse(filename) {
+    const file = await fs.readFile(filename, "utf-8");
+    const ast = bblp.parse(file, {
+      sourceType: "script",
+      plugins: ["dynamicImport"]
+    });
+
+    const dependencies = {};
+    const moduleInfo = {};
+
+    traverse(ast, {
+      CallExpression: (path) => {
+        // Look for webpackJsonp.push() calls
+        if (
+          isCallExpression(path.node.callee) &&
+          path.node.callee.callee?.property?.name === "push"
+        ) {
+          const args = path.node.arguments;
+          if (args.length > 0) {
+            this.parseWebpackPushCall(args[0], dependencies, moduleInfo);
+          }
+        }
+      }
+    });
+
+    return { dependencies, moduleInfo };
+  }
+
+  parseWebpackPushCall(argument, dependencies, moduleInfo) {
+    if (!argument.elements || argument.elements.length < 2) return;
+
+    const modulesArray = argument.elements[1];
+    if (!modulesArray) return;
+
+    // Handle both array and object formats
+    if (modulesArray.properties) {
+      // Object format: { 1026: function(...) {...}, 1027: function(...) {...} }
+      modulesArray.properties.forEach(prop => {
+        if (prop.key && prop.value && isFunctionExpression(prop.value)) {
+          const moduleId = prop.key.value;
+          const deps = this.extractDependencies(prop.value);
+          dependencies[moduleId] = deps;
+          moduleInfo[moduleId] = {
+            type: 'object',
+            loc: prop.loc
+          };
+        }
+      });
+    } else if (modulesArray.elements) {
+      // Array format: [function(...), function(...), ...]
+      modulesArray.elements.forEach((element, index) => {
+        if (element && isFunctionExpression(element)) {
+          const deps = this.extractDependencies(element);
+          dependencies[index] = deps;
+          moduleInfo[index] = {
+            type: 'array',
+            loc: element.loc
+          };
+        }
+      });
+    }
+  }
+
+  extractDependencies(functionNode) {
+    const deps = new Set();
+    const requireIdentifier = functionNode.params[2]; // third parameter is require
+    
+    if (!isIdentifier(requireIdentifier)) return [];
+
+    traverse(functionNode, {
+      CallExpression: (path) => {
+        // Look for calls to the require function: n(123)
+        if (
+          isIdentifier(path.node.callee) &&
+          path.node.callee.name === requireIdentifier.name &&
+          path.node.arguments.length > 0 &&
+          isNumericLiteral(path.node.arguments[0])
+        ) {
+          deps.add(path.node.arguments[0].value);
+        }
+      }
+    }, functionNode.scope); // Limit traversal to function scope
+
+    return Array.from(deps).sort((a, b) => a - b);
+  }
+}
+
+// Usage script
+import fsExtra from "fs-extra";
+
+async function main() {
+  const inputFile = process.argv[2];
+  if (!inputFile) {
+    console.error("Usage: node webpack-deps-babel.js <input-file>");
+    process.exit(1);
+  }
+
+  try {
+    console.log("🔍 Parsing with Babel...");
+    const parser = new WebpackDepsParser();
+    
+    if (!(await parser.isParseable(inputFile))) {
+      console.log("❌ File doesn't appear to be a webpack file");
+      return;
+    }
+
+    const { dependencies, moduleInfo } = await parser.parse(inputFile);
+    
+    console.log(`✅ Found ${Object.keys(dependencies).length} modules with dependencies`);
+    
+    // Show some statistics
+    const chunksWithDeps = Object.entries(dependencies).filter(([_, deps]) => deps.length > 0);
+    console.log(`📊 Modules with dependencies: ${chunksWithDeps.length}`);
+    
+    // Show top modules by import count
+    const sortedByImports = Object.entries(dependencies)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 10);
+    
+    console.log("📈 Top modules by import count:");
+    sortedByImports.forEach(([id, deps]) => {
+      if (deps.length > 0) {
+        console.log(`  Module ${id}: ${deps.length} imports [${deps.join(', ')}]`);
+      }
+    });
+    
+    // Build reverse map for most imported
+    const reverseMap = {};
+    for (const [chunk, imports] of Object.entries(dependencies)) {
+      for (const imp of imports) {
+        if (!reverseMap[imp]) reverseMap[imp] = [];
+        reverseMap[imp].push(parseInt(chunk));
+      }
+    }
+    
+    // Find most imported
+    const mostImported = Object.entries(reverseMap)
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 5);
+    
+    console.log("🏆 Most imported modules:");
+    mostImported.forEach(([id, importers]) => {
+      console.log(`  Module ${id}: imported by ${importers.length} modules`);
+    });
+    
+    // Save results
+    await fsExtra.writeJson("babel-dependencies.json", dependencies, { spaces: 2 });
+    await fsExtra.writeJson("babel-module-info.json", moduleInfo, { spaces: 2 });
+    
+    console.log("✅ Results saved to babel-dependencies.json and babel-module-info.json");
+
+  } catch (err) {
+    console.error("❌ Error:", err.message);
+    console.error("Stack:", err.stack);
+  }
+}
+
+// Run if called directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}
+
+export default WebpackDepsParser;
+```
+
+- `webpackParser.ts`
+```
 import FileParser from "./fileParser";
 
 import traverse, { NodePath } from "@babel/traverse";
@@ -833,3 +1307,6 @@ export default class WebpackParser implements FileParser {
     return null;
   }
 }
+
+```
+

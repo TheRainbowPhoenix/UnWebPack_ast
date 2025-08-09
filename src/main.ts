@@ -5,6 +5,19 @@ import { ESLint } from "eslint";
 import prettier from "prettier";
 import eslintConfig from "./eslintConfig";
 
+// super-simple comment stripper (no deps)
+function stripJsoncSimple(raw: string): string {
+  const noBlock = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+  const noLine = noBlock.replace(/(^|[^:])\/\/.*$/gm, "$1");
+  return noLine;
+}
+
+async function loadAliasesJsonc(filePath: string) {
+  const raw = await fsExtra.readFile(filePath, "utf8");
+  const clean = stripJsoncSimple(raw);
+  return JSON.parse(clean);
+}
+
 async function start() {
   let inFile = "../flare.rive.app/lib/Components.3babdd1411e10d21748a.js"; // "./test/test.min.js";
   // let inFile = "../flare.rive.app/lib/vendor.max.js"; // "./test/test.min.js";
@@ -26,7 +39,12 @@ async function start() {
     overrideConfig: eslintConfig,
   });
 
+  const aliases = await loadAliasesJsonc("webpack-aliases.jsonc");
+  // const aliases = JSON.parse(fsExtra.readFileSync("webpack-aliases.json", "utf-8"));
+
   let parser = new WebpackParser();
+  parser.setAliasMap(aliases);
+
   if (await parser.isParseable(inFile)) {
     console.log(`Parsing ${inFile}...`);
     let modules = await parser.parse(inFile);
