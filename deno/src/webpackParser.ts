@@ -513,105 +513,56 @@ export default class WebpackParser implements FileParser {
     traverse(ast, {
       CallExpression: (path) => {
         const callee = path.node.callee;
+
+        // General sub-chunk case : (...).push([...])
         if (
-          !t.isMemberExpression(callee) ||
-          !t.isIdentifier(callee.property, { name: "push" })
-        )
-          return;
+          t.isMemberExpression(callee) &&
+          t.isIdentifier(callee.property, { name: "push" }) &&
+          this.isWebpackChunkArrayTarget(callee.object)
+        ) {
 
-        if (!this.isWebpackChunkArrayTarget(callee.object)) return;
+          const arg0 = path.get("arguments.0");
+          if (!arg0 || !arg0.isArrayExpression()) return;
 
-        const arg0 = path.get("arguments.0");
-        if (!arg0 || !arg0.isArrayExpression()) return;
+          const elements = arg0.get("elements");
+          if (elements.length < 2) return;
 
-        const elements = arg0.get("elements");
-        if (elements.length < 2) return;
+          const chunkIdsNode = elements[0];
+          const modulesNode = elements[1];
+          if (!chunkIdsNode || !chunkIdsNode.isArrayExpression() || !modulesNode) return;
 
-        const chunkIdsNode = elements[0];
-        const modulesNode = elements[1];
-
-        if (!chunkIdsNode.isArrayExpression()) return;
-        // if (
-        //   !chunkIdsNode?.isArrayExpression() ||
-        //   !modulesNode?.isObjectExpression()
-        // )
-        //   return;
-
-        const chunkIds: Array<number | string> = chunkIdsNode
-          .get("elements")
-          .map((el) =>
-            el?.isNumericLiteral()
-              ? el.node.value
-              : el?.isStringLiteral()
-              ? el.node.value
-              : undefined
-          )
-          .filter((v): v is number | string => v !== undefined);
-
-        // classic object map { id: fn }
-        if (modulesNode?.isObjectExpression()) {
-          for (const propPath of modulesNode.get("properties")) {
-            if (!propPath.isObjectProperty()) continue;
-
-            const key = propPath.node.key;
-            let moduleId: number | string | undefined;
-            if (t.isIdentifier(key)) moduleId = key.name;
-            else if (t.isNumericLiteral(key) || t.isStringLiteral(key))
-              moduleId = key.value;
-
-            if (moduleId === undefined) continue;
-
-            const valPath = propPath.get("value") as NodePath<
-              t.FunctionExpression | t.ArrowFunctionExpression
-            >;
-            if (
-              !valPath.isFunctionExpression() &&
-              !valPath.isArrowFunctionExpression()
+          const chunkIds: Array<number | string> = chunkIdsNode
+            .get("elements")
+            .map((el) =>
+              el?.isNumericLiteral()
+                ? el.node.value
+                : el?.isStringLiteral()
+                ? el.node.value
+                : undefined
             )
-              continue;
+            .filter((v): v is number | string => v !== undefined);
 
-            this.normalizeModuleParamNames(valPath);
-            this.demangleMinifiedBooleans(valPath);
-            this.demangleVoid0(valPath);
-            this.normalizeYoda(valPath);
+          // classic object map { id: fn }
+          if (modulesNode?.isObjectExpression()) {
+            for (const propPath of modulesNode.get("properties")) {
+              if (!propPath.isObjectProperty()) continue;
 
-            const interopName = this.renameInteropHelper(valPath);
-            this.renameRequireBindings(valPath, interopName);
-            this.applyRequireAliases(valPath, interopName);
-            this.renameSingleLetterBindings(valPath);
+              const key = propPath.node.key;
+              let moduleId: number | string | undefined;
+              if (t.isIdentifier(key)) moduleId = key.name;
+              else if (t.isNumericLiteral(key) || t.isStringLiteral(key))
+                moduleId = key.value;
 
-            for (const chunkId of chunkIds) {
-              modules.push({
-                file: this.currentFile,
-                element: valPath,
-                i: moduleId,
-                deps: [],
-                chunkId,
-                moduleId,
-                fn: valPath.node,
-              } as unknown as Module);
-            }
-          }
-          return;
-        }
+              if (moduleId === undefined) continue;
 
-        // Array(N).concat([ fn, fn, ... ]) where ids start at N
-        if (modulesNode?.isCallExpression()) {
-          const match = this.matchConcatModulesArray(modulesNode);
-          if (match) {
-            const { base, arr } = match; // base is the starting module id (e.g., 201)
-            const fnElems = arr.get("elements");
-
-            fnElems.forEach((elPath, idx) => {
-              if (!elPath) return;
-              const valPath = elPath as NodePath<any>;
+              const valPath = propPath.get("value") as NodePath<
+                t.FunctionExpression | t.ArrowFunctionExpression
+              >;
               if (
                 !valPath.isFunctionExpression() &&
                 !valPath.isArrowFunctionExpression()
               )
-                return;
-
-              const moduleId = base + idx;
+                continue;
 
               this.normalizeModuleParamNames(valPath);
               this.demangleMinifiedBooleans(valPath);
@@ -634,16 +585,104 @@ export default class WebpackParser implements FileParser {
                   fn: valPath.node,
                 } as unknown as Module);
               }
-            });
+            }
             return;
           }
+
+          // Array(N).concat([ fn, fn, ... ]) where ids start at N
+          if (modulesNode?.isCallExpression()) {
+            const match = this.matchConcatModulesArray(modulesNode);
+            if (match) {
+              const { base, arr } = match; // base is the starting module id (e.g., 201)
+              const fnElems = arr.get("elements");
+
+              fnElems.forEach((elPath, idx) => {
+                if (!elPath) return;
+                const valPath = elPath as NodePath<any>;
+                if (
+                  !valPath.isFunctionExpression() &&
+                  !valPath.isArrowFunctionExpression()
+                )
+                  return;
+
+                const moduleId = base + idx;
+
+                this.normalizeModuleParamNames(valPath);
+                this.demangleMinifiedBooleans(valPath);
+                this.demangleVoid0(valPath);
+                this.normalizeYoda(valPath);
+
+                const interopName = this.renameInteropHelper(valPath);
+                this.renameRequireBindings(valPath, interopName);
+                this.applyRequireAliases(valPath, interopName);
+                this.renameSingleLetterBindings(valPath);
+
+                for (const chunkId of chunkIds) {
+                  modules.push({
+                    file: this.currentFile,
+                    element: valPath,
+                    i: moduleId,
+                    deps: [],
+                    chunkId,
+                    moduleId,
+                    fn: valPath.node,
+                  } as unknown as Module);
+                }
+              });
+              return;
+            }
+          }
+
+          // plain array of module fns [ fn, fn, ... ]
+          if (modulesNode?.isArrayExpression()) {
+            this.parseArray(ast, modulesNode as NodePath<t.ArrayExpression>, modules);
+          }
+          return;
         }
 
-        // --- Optional Case 3: plain array of module fns [ fn, fn, ... ]
-        // If you want this, keep it. If not, remove this block.
-        if (modulesNode?.isArrayExpression()) {
-          this.parseArray(ast, modulesNode as NodePath<t.ArrayExpression>, modules);
-          return;
+        // Main IIFE bootstrap (function(e){...})( { id: fn, ... } )
+        if ((t.isFunctionExpression(callee) || t.isArrowFunctionExpression(callee)) && path.node.arguments.length >= 1) {
+          const arg0 = path.get("arguments.0");
+          
+          // modules passed as { id: fn, ... }
+          if (arg0.isObjectExpression()) {
+            const chunkIds: Array<number | string> = [0]; // treat as "main" chunk; change to 'main' if you prefer
+            for (const propPath of arg0.get("properties")) {
+              if (!propPath.isObjectProperty()) continue;
+
+              const key = propPath.node.key;
+              let moduleId: number | string | undefined;
+              if (t.isIdentifier(key)) moduleId = key.name;
+              else if (t.isNumericLiteral(key) || t.isStringLiteral(key)) moduleId = key.value;
+              if (moduleId === undefined) continue;
+
+              const valPath = propPath.get("value") as NodePath<t.FunctionExpression | t.ArrowFunctionExpression>;
+              if (!valPath.isFunctionExpression() && !valPath.isArrowFunctionExpression()) continue;
+
+              this.normalizeModuleParamNames(valPath);
+              this.demangleMinifiedBooleans(valPath);
+              this.demangleVoid0(valPath);
+              this.normalizeYoda(valPath);
+
+              const interopName = this.renameInteropHelper(valPath);
+              this.renameRequireBindings(valPath, interopName);
+              this.applyRequireAliases(valPath, interopName);
+              this.renameSingleLetterBindings(valPath);
+
+              for (const chunkId of chunkIds) {
+                modules.push({
+                  file: this.currentFile,
+                  element: valPath,
+                  i: moduleId,
+                  deps: [],
+                  chunkId,
+                  moduleId,
+                  fn: valPath.node,
+                } as unknown as Module);
+              }
+            }
+            return;
+          }
         }
       },
     });
