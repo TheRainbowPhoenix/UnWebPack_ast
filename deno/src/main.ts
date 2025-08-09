@@ -23,7 +23,7 @@ async function loadAliasesJsonc(filePath: string) {
 }
 
 async function start() {
-  const inFile = "../../flare.rive.app/lib/Components.3babdd1411e10d21748a.js";
+  const inFile = "../../flare.rive.app/lib/Nima.75f25c72b5b721e88cb1.js";
 
   console.log("Reading files...");
 

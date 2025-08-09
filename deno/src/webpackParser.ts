@@ -35,7 +35,8 @@ export default class WebpackParser implements FileParser {
   private fileLetterCounters = new Map<string, Map<string, number>>();
   private aliasById = new Map<string, string>();
 
-  private readonly _alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  private readonly _alpha =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
   private isWebpackFile = (file: string) =>
     file.includes("Chunks") || file.includes("window.webpackJsonp");
@@ -57,7 +58,7 @@ export default class WebpackParser implements FileParser {
     }
   }
 
-  async parse(filename: any): Promise<Module[]> {
+  async parse(filename: string): Promise<Module[]> {
     const fileContent = await Deno.readTextFile(filename);
     this.currentFile = filename;
 
@@ -71,22 +72,22 @@ export default class WebpackParser implements FileParser {
 
     return modules;
   }
-  
+
   private _usedSet(): Set<string> {
     const set = this.fileUsedNames.get(this.currentFile!);
     if (!set) throw new Error("used-name set not init");
     return set;
   }
-  
+
   private _counters(): Map<string, number> {
     const map = this.fileLetterCounters.get(this.currentFile!);
     if (!map) throw new Error("letter counters not init");
     return map;
   }
-  
+
   private _toBase52(n: number, minLen = 3): string {
     if (n === 0) return "a".repeat(minLen);
-    
+
     const digits: string[] = [];
     while (n > 0) {
       const r = n % 52;
@@ -98,7 +99,10 @@ export default class WebpackParser implements FileParser {
     return s;
   }
 
-  private _nextNameFor(letter: string, scope: import("npm:@babel/traverse").Scope): string {
+  private _nextNameFor(
+    letter: string,
+    scope: import("npm:@babel/traverse").Scope
+  ): string {
     const used = this._usedSet();
     const counters = this._counters();
     let idx = counters.get(letter) ?? 0;
@@ -113,7 +117,6 @@ export default class WebpackParser implements FileParser {
       idx++;
     }
   }
-
 
   private demangleMinifiedBooleans(
     fnPath: NodePath<t.FunctionExpression | t.ArrowFunctionExpression>
@@ -133,8 +136,12 @@ export default class WebpackParser implements FileParser {
     });
   }
 
-  private demangleVoid0(fnPath: NodePath<t.FunctionExpression | t.ArrowFunctionExpression>) {
-    const isVoid0 = (n: t.Node) => t.isUnaryExpression(n, { operator: "void" }) && t.isNumericLiteral(n.argument, { value: 0 });
+  private demangleVoid0(
+    fnPath: NodePath<t.FunctionExpression | t.ArrowFunctionExpression>
+  ) {
+    const isVoid0 = (n: t.Node) =>
+      t.isUnaryExpression(n, { operator: "void" }) &&
+      t.isNumericLiteral(n.argument, { value: 0 });
 
     fnPath.traverse({
       UnaryExpression: (p) => {
@@ -142,8 +149,13 @@ export default class WebpackParser implements FileParser {
       },
       BinaryExpression: (p) => {
         const { node } = p;
-        if ((node.operator === "===" || node.operator === "==" || node.operator === "!==" || node.operator === "!=") &&
-            (isVoid0(node.left) || isVoid0(node.right))) {
+        if (
+          (node.operator === "===" ||
+            node.operator === "==" ||
+            node.operator === "!==" ||
+            node.operator === "!=") &&
+          (isVoid0(node.left) || isVoid0(node.right))
+        ) {
           if (isVoid0(node.left)) node.left = t.identifier("undefined");
           if (isVoid0(node.right)) node.right = t.identifier("undefined");
           p.replaceWith(node);
@@ -152,23 +164,36 @@ export default class WebpackParser implements FileParser {
     });
   }
 
-  private normalizeYoda(fnPath: NodePath<t.FunctionExpression | t.ArrowFunctionExpression>) {
+  private normalizeYoda(
+    fnPath: NodePath<t.FunctionExpression | t.ArrowFunctionExpression>
+  ) {
     fnPath.traverse({
       BinaryExpression: (bp) => {
         const { node } = bp;
         if (!["===", "==", "!==", "!="].includes(node.operator)) return;
         const leftConst =
-          t.isLiteral(node.left as any) || t.isIdentifier(node.left, { name: "undefined" });
+          t.isLiteral(node.left as any) ||
+          t.isIdentifier(node.left, { name: "undefined" });
         const rightVar =
           t.isIdentifier(node.right) || t.isMemberExpression(node.right);
         if (leftConst && rightVar) {
-          bp.replaceWith(t.binaryExpression(node.operator, node.right as any, node.left as any));
+          bp.replaceWith(
+            t.binaryExpression(
+              node.operator,
+              node.right as any,
+              node.left as any
+            )
+          );
         }
       },
     });
   }
 
-  private renameBindingIn(fnPath: NodePath<any>, oldName: string, desired: string): string {
+  private renameBindingIn(
+    fnPath: NodePath<any>,
+    oldName: string,
+    desired: string
+  ): string {
     const scope = fnPath.scope;
     let finalName = desired;
     if (desired !== oldName && scope.hasBinding(desired)) {
@@ -179,13 +204,19 @@ export default class WebpackParser implements FileParser {
   }
 
   private applyRequireAliases(
-    fnPath: import("npm:@babel/traverse").NodePath<t.FunctionExpression | t.ArrowFunctionExpression>,
+    fnPath: import("npm:@babel/traverse").NodePath<
+      t.FunctionExpression | t.ArrowFunctionExpression
+    >,
     interopName: string | null
   ) {
     const getRequireId = (node: t.Node): string | null => {
-      if (t.isCallExpression(node) && t.isIdentifier(node.callee, { name: "__webpack_require__" })) {
+      if (
+        t.isCallExpression(node) &&
+        t.isIdentifier(node.callee, { name: "__webpack_require__" })
+      ) {
         const a0 = node.arguments[0];
-        if (t.isNumericLiteral(a0) || t.isStringLiteral(a0)) return String(a0.value);
+        if (t.isNumericLiteral(a0) || t.isStringLiteral(a0))
+          return String(a0.value);
         return null;
       }
       if (
@@ -238,7 +269,9 @@ export default class WebpackParser implements FileParser {
     let ret: t.Expression | null = null;
     const body: any = (fn as any).body;
     if (t.isBlockStatement(body)) {
-      const r = body.body.find(s => t.isReturnStatement(s)) as t.ReturnStatement | undefined;
+      const r = body.body.find((s) => t.isReturnStatement(s)) as
+        | t.ReturnStatement
+        | undefined;
       ret = r?.argument ?? null;
     } else {
       ret = body as t.Expression;
@@ -265,66 +298,89 @@ export default class WebpackParser implements FileParser {
 
     return testOk && consOk && altOk;
   }
-  
+
   private renameInteropHelper(
     fnPath: NodePath<t.FunctionExpression | t.ArrowFunctionExpression>
   ): string | null {
     let interopName: string | null = null;
 
-    fnPath.get("body").traverse({
-      FunctionDeclaration: (p) => {
-        const id = p.node.id;
-        if (!id) return;
-        if (this.isInteropRequireDefaultFn(p.node)) {
-          interopName = this.renameBindingIn(fnPath, id.name, "interopRequireDefault");
-        }
+    fnPath.get("body").traverse(
+      {
+        FunctionDeclaration: (p) => {
+          const id = p.node.id;
+          if (!id) return;
+          if (this.isInteropRequireDefaultFn(p.node)) {
+            interopName = this.renameBindingIn(
+              fnPath,
+              id.name,
+              "interopRequireDefault"
+            );
+          }
+        },
+        VariableDeclarator: (p) => {
+          if (!t.isIdentifier(p.node.id)) return;
+          const init = p.node.init;
+          if (
+            !init ||
+            (!t.isFunctionExpression(init) &&
+              !t.isArrowFunctionExpression(init))
+          )
+            return;
+          if (this.isInteropRequireDefaultFn(init)) {
+            interopName = this.renameBindingIn(
+              fnPath,
+              p.node.id.name,
+              "interopRequireDefault"
+            );
+          }
+        },
       },
-      VariableDeclarator: (p) => {
-        if (!t.isIdentifier(p.node.id)) return;
-        const init = p.node.init;
-        if (!init || (!t.isFunctionExpression(init) && !t.isArrowFunctionExpression(init))) return;
-        if (this.isInteropRequireDefaultFn(init)) {
-          interopName = this.renameBindingIn(fnPath, p.node.id.name, "interopRequireDefault");
-        }
-      },
-    }, fnPath.scope);
+      fnPath.scope
+    );
 
     return interopName;
   }
-  
+
   private renameRequireBindings(
     fnPath: NodePath<t.FunctionExpression | t.ArrowFunctionExpression>,
     interopName: string | null
   ) {
-    fnPath.get("body").traverse({
-      VariableDeclarator: (p) => {
-        const id = p.node.id;
-        if (!t.isIdentifier(id) || id.name.length !== 1) return;
+    fnPath.get("body").traverse(
+      {
+        VariableDeclarator: (p) => {
+          const id = p.node.id;
+          if (!t.isIdentifier(id) || id.name.length !== 1) return;
 
-        const init = p.node.init;
-        if (!init || !t.isCallExpression(init)) return;
+          const init = p.node.init;
+          if (!init || !t.isCallExpression(init)) return;
 
-        const isWrappedRequire =
-          interopName != null &&
-          t.isIdentifier(init.callee, { name: interopName }) &&
-          init.arguments.length >= 1 &&
-          t.isCallExpression(init.arguments[0]) &&
-          t.isIdentifier((init.arguments[0] as t.CallExpression).callee, { name: "__webpack_require__" });
+          const isWrappedRequire =
+            interopName != null &&
+            t.isIdentifier(init.callee, { name: interopName }) &&
+            init.arguments.length >= 1 &&
+            t.isCallExpression(init.arguments[0]) &&
+            t.isIdentifier((init.arguments[0] as t.CallExpression).callee, {
+              name: "__webpack_require__",
+            });
 
-        const isDirectRequire =
-          t.isIdentifier(init.callee, { name: "__webpack_require__" }) ||
-          (t.isMemberExpression(init.callee) &&
-          t.isIdentifier(init.callee.object, { name: "__webpack_require__" }));
+          const isDirectRequire =
+            t.isIdentifier(init.callee, { name: "__webpack_require__" }) ||
+            (t.isMemberExpression(init.callee) &&
+              t.isIdentifier(init.callee.object, {
+                name: "__webpack_require__",
+              }));
 
-        if (isWrappedRequire) {
-          this.renameBindingIn(fnPath, id.name, `import_${id.name}`);
-        } else if (isDirectRequire) {
-          this.renameBindingIn(fnPath, id.name, `require_${id.name}`);
-        }
+          if (isWrappedRequire) {
+            this.renameBindingIn(fnPath, id.name, `import_${id.name}`);
+          } else if (isDirectRequire) {
+            this.renameBindingIn(fnPath, id.name, `require_${id.name}`);
+          }
+        },
       },
-    }, fnPath.scope);
+      fnPath.scope
+    );
   }
-  
+
   private normalizeModuleParamNames(
     fnPath: NodePath<t.FunctionExpression | t.ArrowFunctionExpression>
   ) {
@@ -348,7 +404,9 @@ export default class WebpackParser implements FileParser {
     }
   }
 
-  private renameSingleLetterBindings(fnPath: NodePath<t.FunctionExpression | t.ArrowFunctionExpression>) {
+  private renameSingleLetterBindings(
+    fnPath: NodePath<t.FunctionExpression | t.ArrowFunctionExpression>
+  ) {
     const isSingleLetter = (name: string) => /^[A-Za-z]$/.test(name);
 
     fnPath.traverse({
@@ -402,12 +460,64 @@ export default class WebpackParser implements FileParser {
       },
     });
   }
-  
+
+  /**
+   * Match: Array(<base>).concat([ <fn>, <fn>, ... ])
+   * Returns the base offset and the ArrayExpression path with functions.
+   */
+  private matchConcatModulesArray(
+    callPath: NodePath<t.CallExpression>
+  ): { base: number; arr: NodePath<t.ArrayExpression> } | null {
+    const callee = callPath.get("callee");
+    if (!callee.isMemberExpression()) return null;
+
+    const prop = callee.get("property");
+    if (!prop.isIdentifier({ name: "concat" })) return null;
+
+    // Object should be Array(<base>) or new Array(<base>)
+    const obj = callee.get("object");
+    let base: number | null = null;
+
+    if (obj.isCallExpression()) {
+      const c = obj.get("callee");
+      const args = obj.get("arguments");
+      if (
+        c.isIdentifier({ name: "Array" }) &&
+        args.length === 1 &&
+        args[0].isNumericLiteral()
+      ) {
+        base = args[0].node.value;
+      }
+    } else if (obj.isNewExpression()) {
+      const c = obj.get("callee");
+      const args = obj.get("arguments");
+      if (
+        c.isIdentifier({ name: "Array" }) &&
+        args.length === 1 &&
+        args[0].isNumericLiteral()
+      ) {
+        base = (args[0].node as t.NumericLiteral).value;
+      }
+    }
+
+    if (base == null) return null;
+
+    // First arg to concat should be an ArrayExpression with functions
+    const concatArg0 = callPath.get("arguments.0");
+    if (!concatArg0 || !concatArg0.isArrayExpression()) return null;
+
+    return { base, arr: concatArg0 as NodePath<t.ArrayExpression> };
+  }
+
   protected parseAst(ast: bblp.ParseResult<t.File>, modules: Module[]): void {
     traverse(ast, {
       CallExpression: (path) => {
         const callee = path.node.callee;
-        if (!t.isMemberExpression(callee) || !t.isIdentifier(callee.property, { name: "push" })) return;
+        if (
+          !t.isMemberExpression(callee) ||
+          !t.isIdentifier(callee.property, { name: "push" })
+        )
+          return;
 
         if (!this.isWebpackChunkArrayTarget(callee.object)) return;
 
@@ -420,56 +530,387 @@ export default class WebpackParser implements FileParser {
         const chunkIdsNode = elements[0];
         const modulesNode = elements[1];
 
-        if (!chunkIdsNode?.isArrayExpression() || !modulesNode?.isObjectExpression()) return;
+        if (!chunkIdsNode.isArrayExpression()) return;
+        // if (
+        //   !chunkIdsNode?.isArrayExpression() ||
+        //   !modulesNode?.isObjectExpression()
+        // )
+        //   return;
 
         const chunkIds: Array<number | string> = chunkIdsNode
           .get("elements")
-          .map((el) => el?.isNumericLiteral() ? el.node.value : el?.isStringLiteral() ? el.node.value : undefined)
+          .map((el) =>
+            el?.isNumericLiteral()
+              ? el.node.value
+              : el?.isStringLiteral()
+              ? el.node.value
+              : undefined
+          )
           .filter((v): v is number | string => v !== undefined);
 
-        for (const propPath of modulesNode.get("properties")) {
-          if (!propPath.isObjectProperty()) continue;
+        // classic object map { id: fn }
+        if (modulesNode?.isObjectExpression()) {
+          for (const propPath of modulesNode.get("properties")) {
+            if (!propPath.isObjectProperty()) continue;
 
-          const key = propPath.node.key;
-          let moduleId: number | string | undefined;
-          if (t.isIdentifier(key)) moduleId = key.name;
-          else if (t.isNumericLiteral(key) || t.isStringLiteral(key)) moduleId = key.value;
+            const key = propPath.node.key;
+            let moduleId: number | string | undefined;
+            if (t.isIdentifier(key)) moduleId = key.name;
+            else if (t.isNumericLiteral(key) || t.isStringLiteral(key))
+              moduleId = key.value;
 
-          if (moduleId === undefined) continue;
+            if (moduleId === undefined) continue;
 
-          const valPath = propPath.get("value") as NodePath<t.FunctionExpression | t.ArrowFunctionExpression>;
-          if (!valPath.isFunctionExpression() && !valPath.isArrowFunctionExpression()) continue;
+            const valPath = propPath.get("value") as NodePath<
+              t.FunctionExpression | t.ArrowFunctionExpression
+            >;
+            if (
+              !valPath.isFunctionExpression() &&
+              !valPath.isArrowFunctionExpression()
+            )
+              continue;
 
-          this.normalizeModuleParamNames(valPath);
-          this.demangleMinifiedBooleans(valPath);
-          this.demangleVoid0(valPath);
-          this.normalizeYoda(valPath);
+            this.normalizeModuleParamNames(valPath);
+            this.demangleMinifiedBooleans(valPath);
+            this.demangleVoid0(valPath);
+            this.normalizeYoda(valPath);
 
-          const interopName = this.renameInteropHelper(valPath);
-          this.renameRequireBindings(valPath, interopName);
-          this.applyRequireAliases(valPath, interopName);
-          this.renameSingleLetterBindings(valPath);
+            const interopName = this.renameInteropHelper(valPath);
+            this.renameRequireBindings(valPath, interopName);
+            this.applyRequireAliases(valPath, interopName);
+            this.renameSingleLetterBindings(valPath);
 
-          for (const chunkId of chunkIds) {
-            modules.push({
-              file: this.currentFile,
-              element: valPath,
-              i: moduleId,
-              deps: [],
-              chunkId,
-              moduleId,
-              fn: valPath.node,
-            } as unknown as Module);
+            for (const chunkId of chunkIds) {
+              modules.push({
+                file: this.currentFile,
+                element: valPath,
+                i: moduleId,
+                deps: [],
+                chunkId,
+                moduleId,
+                fn: valPath.node,
+              } as unknown as Module);
+            }
           }
+          return;
+        }
+
+        // Array(N).concat([ fn, fn, ... ]) where ids start at N
+        if (modulesNode?.isCallExpression()) {
+          const match = this.matchConcatModulesArray(modulesNode);
+          if (match) {
+            const { base, arr } = match; // base is the starting module id (e.g., 201)
+            const fnElems = arr.get("elements");
+
+            fnElems.forEach((elPath, idx) => {
+              if (!elPath) return;
+              const valPath = elPath as NodePath<any>;
+              if (
+                !valPath.isFunctionExpression() &&
+                !valPath.isArrowFunctionExpression()
+              )
+                return;
+
+              const moduleId = base + idx;
+
+              this.normalizeModuleParamNames(valPath);
+              this.demangleMinifiedBooleans(valPath);
+              this.demangleVoid0(valPath);
+              this.normalizeYoda(valPath);
+
+              const interopName = this.renameInteropHelper(valPath);
+              this.renameRequireBindings(valPath, interopName);
+              this.applyRequireAliases(valPath, interopName);
+              this.renameSingleLetterBindings(valPath);
+
+              for (const chunkId of chunkIds) {
+                modules.push({
+                  file: this.currentFile,
+                  element: valPath,
+                  i: moduleId,
+                  deps: [],
+                  chunkId,
+                  moduleId,
+                  fn: valPath.node,
+                } as unknown as Module);
+              }
+            });
+            return;
+          }
+        }
+
+        // --- Optional Case 3: plain array of module fns [ fn, fn, ... ]
+        // If you want this, keep it. If not, remove this block.
+        if (modulesNode?.isArrayExpression()) {
+          this.parseArray(ast, modulesNode as NodePath<t.ArrayExpression>, modules);
+          return;
         }
       },
     });
   }
-  
+
+  private parseArray(
+    file: bblp.ParseResult<t.File>,
+    ast: NodePath<t.ArrayExpression>,
+    modules: Module[]
+  ): void {
+    ast.get("elements").forEach((element, i) => {
+      if (!element.isFunctionExpression()) return;
+      if (element.node.body.body.length === 0) return;
+
+      const depIndex: number[] = [];
+      const requireIdentifer = element.node.params[2];
+      if (isIdentifier(requireIdentifer)) {
+        element.traverse({
+          VariableDeclarator: (path) => {
+            if (
+              isVariableDeclaration(path.parent) &&
+              isIdentifier(path.node.id) &&
+              path.parent.kind === "const" // imports are const
+            ) {
+              let containsRequire = false;
+
+              path.traverse({
+                CallExpression(cEPath) {
+                  if (
+                    isIdentifier(cEPath.node.callee) &&
+                    isNumericLiteral(cEPath.node.arguments[0]) &&
+                    cEPath.scope.bindingIdentifierEquals(
+                      cEPath.node.callee.name,
+                      requireIdentifer
+                    )
+                  ) {
+                    containsRequire = true;
+                    // console.log(cEPath.node);
+                    cEPath.stop(); // Stop traversing further, as we found the require call
+                  }
+                },
+              });
+
+              if (containsRequire) {
+                const name = path.node.id.name;
+                const binding = path.scope.getBinding(name);
+                if (binding) {
+                  const newName = `import_${name}`;
+                  binding.identifier.name = newName;
+                  // Rename all references to the binding
+                  binding.referencePaths.forEach((referencePath) => {
+                    if (
+                      isIdentifier(referencePath.node) &&
+                      referencePath.node.name === name
+                    ) {
+                      referencePath.node.name = newName;
+                    }
+                  });
+                }
+              }
+              //   console.log(containsRequire, path.node.id.name);
+            }
+          },
+          CallExpression: (depPath) => {
+            if (
+              !isIdentifier(depPath.node.callee) ||
+              !isNumericLiteral(depPath.node.arguments[0])
+            )
+              return;
+            if (
+              depPath.scope.bindingIdentifierEquals(
+                depPath.node.callee.name,
+                requireIdentifer
+              )
+            ) {
+              depIndex.push(depPath.node.arguments[0].value);
+              //   depIndex[depPath.node.arguments[0].value] =
+              // depPath.node.arguments[0].value;
+            }
+          },
+        });
+      }
+
+      let mod = {
+        file: file,
+        element: element,
+        i: i,
+        deps: depIndex,
+      };
+      //   console.log("require: ", depIndex);
+
+      this.cleanES6Object(element);
+      this.cleanES6Import(element);
+      this.cleanImports(element);
+
+      //   console.log(generator(element.node).code);
+
+      modules[i] = mod;
+    });
+  }
+
+  /**
+   * Remove the "__importDefault" stuff
+   * @param path
+   */
+  private cleanES6Import(path: NodePath<t.FunctionExpression>): void {
+    const bodyPath = path.get("body");
+
+    bodyPath.node.body = bodyPath.node.body.filter((line) => {
+      let declaration = null;
+      if (
+        isVariableDeclaration(line) &&
+        line.kind === "var" && // Somehow the useless __importDefault is always var
+        line.declarations.length === 1 &&
+        isLogicalExpression((declaration = line.declarations[0]).init) &&
+        declaration.init.operator === "||" &&
+        isFunctionExpression(declaration.init.right) &&
+        declaration.init.right.params.length === 1 &&
+        isLogicalExpression(declaration.init.left) &&
+        isMemberExpression(declaration.init.left.right) &&
+        isIdentifier(declaration.init.left.right.property) &&
+        declaration.init.left.right.property.name === "__importDefault"
+      ) {
+        return false; // Skip the line containing `this.__importDefault`
+      }
+      return true;
+    });
+  }
+
+  /**
+   * Remove the "Object.defineProperty(e, "__esModule", ...)" stuff
+   * @param path
+   */
+  private cleanES6Object(path: NodePath<t.FunctionExpression>): void {
+    const bodyPath = path.get("body");
+
+    let isEsModule = false;
+
+    bodyPath.node.body = bodyPath.node.body.filter((line) => {
+      const callExp = isExpressionStatement(line) ? line.expression : line;
+      if (!isCallExpression(callExp)) return true;
+      if (!isMemberExpression(callExp.callee)) return true;
+      if (
+        !isIdentifier(callExp.callee.object) ||
+        !isIdentifier(callExp.callee.property)
+      )
+        return true;
+      if (
+        callExp.callee.object.name !== "Object" ||
+        callExp.callee.property.name !== "defineProperty"
+      )
+        return true;
+      if (
+        !isIdentifier(callExp.arguments[0]) ||
+        !isStringLiteral(callExp.arguments[1])
+      )
+        return true;
+      //   if (
+      //     bodyPath.scope.getBindingIdentifier(callExp.arguments[0].name)
+      //       ?.start !== "e" // module.exportsParam?.start
+      //   )
+      //     return true;
+      if (callExp.arguments[1].value !== "__esModule") return true;
+
+      isEsModule = true;
+      return false;
+    });
+
+    if (isEsModule) {
+      let comment = "__esModule";
+      bodyPath.addComment("leading", `${comment}`, true);
+    }
+  }
+
+  private cleanImports(path: NodePath<t.FunctionExpression>): void {
+    const bodyPath = path.get("body");
+
+    const exportName = isIdentifier(path.node.params[1])
+      ? path.node.params[1].name
+      : "e";
+
+    bodyPath.traverse({
+      AssignmentExpression: (path) => {
+        const { left } = path.node;
+
+        // console.log(left);
+        if (
+          !isMemberExpression(left) ||
+          !isIdentifier(left.object) ||
+          !isIdentifier(left.property) ||
+          left.object.name !== exportName
+        )
+          return;
+
+        const isDefault = left.property.name === "default";
+        const generatedExport = this.generateES6Export(path.node, isDefault);
+        // console.debug(">> generatedExport ", generatedExport === null);
+        if (!generatedExport) return;
+
+        if (isExpressionStatement(path.parent)) {
+          //   console.debug("replaceWith generatedES6Export");
+          path.parentPath.replaceWith(generatedExport);
+          // } else if (isFunctionExpression(path.node.right) && path.parentPath.isVariableDeclarator() && isIdentifier(path.parentPath.node.id)) {
+          //     path.scope.rename(
+          //       path.parentPath.node.id.name,
+          //       path.node.left.property.name
+          //     );
+        }
+
+        // console.log(path);
+      },
+    });
+  }
+
+  private generateES6Export(
+    node: t.AssignmentExpression,
+    isDefault: boolean
+  ): t.ExportNamedDeclaration | t.ExportDefaultDeclaration | null {
+    if (!isMemberExpression(node.left) || !isIdentifier(node.left.property))
+      return null;
+
+    // console.log(generator(node).code);
+
+    const exportType = isDefault
+      ? exportDefaultDeclaration
+      : exportNamedDeclaration;
+
+    // console.debug("exportType:", exportType.name);
+    // console.debug("node.right:", node.right);
+
+    if (isClassExpression(node.right) && isDefault) {
+      return exportDefaultDeclaration(node.right);
+    }
+
+    if (isObjectExpression(node.right) && !isDefault) {
+      return exportNamedDeclaration(
+        variableDeclaration("const", [
+          variableDeclarator(node.left.property, node.right),
+        ])
+      );
+    }
+
+    if (isFunctionExpression(node.right)) {
+      return exportType(
+        functionDeclaration(
+          node.left.property,
+          node.right.params,
+          node.right.body
+        )
+      );
+    }
+    if (isIdentifier(node.right) && isDefault) {
+      return exportDefaultDeclaration(node.right);
+    }
+    return null;
+  }
+
   private isWebpackChunkArrayTarget(expr: t.Expression): boolean {
     const isWebpackArrayMember = (m: t.MemberExpression) => {
-      const prop = t.isIdentifier(m.property) ? m.property.name : t.isStringLiteral(m.property) ? m.property.value : null;
-      return !!prop && (prop === "webpackJsonp" || prop.startsWith("webpackChunk"));
+      const prop = t.isIdentifier(m.property)
+        ? m.property.name
+        : t.isStringLiteral(m.property)
+        ? m.property.value
+        : null;
+      return (
+        !!prop && (prop === "webpackJsonp" || prop.startsWith("webpackChunk"))
+      );
     };
 
     if (t.isMemberExpression(expr) && isWebpackArrayMember(expr)) return true;
@@ -477,7 +918,9 @@ export default class WebpackParser implements FileParser {
     if (t.isAssignmentExpression(expr)) {
       const { left, right } = expr;
       const leftOk = t.isMemberExpression(left) && isWebpackArrayMember(left);
-      const rightOk = t.isLogicalExpression(right, { operator: "||" }) && t.isArrayExpression(right.right);
+      const rightOk =
+        t.isLogicalExpression(right, { operator: "||" }) &&
+        t.isArrayExpression(right.right);
       return leftOk && rightOk;
     }
     return false;
