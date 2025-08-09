@@ -26,11 +26,19 @@ import {
   isClassExpression,
   isVariableDeclaration,
   isLogicalExpression,
+  isAssignmentExpression,
+  ArrowFunctionExpression,
+  isArrayExpression,
+  isObjectProperty,
+  Identifier,
 } from "@babel/types";
+import * as t from "@babel/types";
 
 import type Module from "./module";
 
 export default class WebpackParser implements FileParser {
+  private currentFile?: string;
+
   private isWebpackFile = (file: string) =>
     file.includes("Chunks") || file.includes("window.webpackJsonp");
 
@@ -46,6 +54,7 @@ export default class WebpackParser implements FileParser {
 
   async parse(filename: any): Promise<Module[]> {
     const file = await fs.readFile(filename, "utf-8");
+    this.currentFile = filename;
     const ast: bblp.ParseResult<File> = bblp.parse(file);
 
     const modules: Module[] = [];
@@ -55,29 +64,176 @@ export default class WebpackParser implements FileParser {
     return modules;
   }
 
-  protected parseAst(ast: bblp.ParseResult<File>, modules: Module[]): void {
-    // let argument;
-
-    traverse(ast, {
-      CallExpression: (nodePath) => {
-        const firstArg = nodePath.get("arguments")[0];
-        // console.log(firstArg);
-
-        if (
-          isFunctionExpression(nodePath.node.callee) &&
-          firstArg?.isArrayExpression()
-        ) {
-          // entrypoint
-          //   console.log("firstArg !!");
-
-          //   console.log(generator(firstArg.node).code);
-
-          this.parseArray(ast, firstArg, modules);
+  private demangleMinifiedBooleans(
+    fnPath: NodePath<FunctionExpression | ArrowFunctionExpression>
+  ) {
+    // Traverse only inside this wrapper function
+    fnPath.traverse({
+      UnaryExpression: (ux) => {
+        if (ux.node.operator !== "!") return;
+        const arg = ux.node.argument;
+        if (t.isNumericLiteral(arg)) {
+          if (arg.value === 0) {
+            ux.replaceWith(t.booleanLiteral(true));
+          } else if (arg.value === 1) {
+            ux.replaceWith(t.booleanLiteral(false));
+          }
         }
       },
     });
   }
 
+  private normalizeModuleParamNames(
+    fnPath: NodePath<FunctionExpression | ArrowFunctionExpression>
+  ) {
+    const desired = ["module", "exports", "__webpack_require__"];
+
+    // Only work with identifiers, skip patterns like {…} or defaults
+    const params = fnPath.node.params.filter(
+      (p): p is Identifier => p && p.type === "Identifier"
+    );
+
+    for (let i = 0; i < Math.min(params.length, desired.length); i++) {
+      const id = params[i];
+      const from = id.name;
+      const to = desired[i];
+      if (from === to) continue;
+
+      // If something else already binds `to` in THIS function, free it first
+      const existing = fnPath.scope.getBinding(to);
+      if (existing && existing.identifier !== id) {
+        const fresh = fnPath.scope.generateUidIdentifier(to).name; // e.g. _module, _exports
+        existing.scope.rename(to, fresh);
+      }
+
+      // Rename the parameter binding (updates the param node + all refs)
+      fnPath.scope.rename(from, to);
+    }
+  }
+
+  protected parseAst(ast: bblp.ParseResult<File>, modules: Module[]): void {
+    // let argument;
+
+    traverse(ast, {
+      CallExpression: (path) => {
+        const callee = path.node.callee;
+
+        // We only care about `(...).push(...)`
+        if (!t.isMemberExpression(callee)) return;
+        if (!t.isIdentifier(callee.property, { name: "push" })) return;
+
+        // Make sure the object being pushed to looks like a webpack chunk array
+        if (!this.isWebpackChunkArrayTarget(callee.object)) return;
+
+        // The first (and only) argument should be an ArrayExpression:
+        /// push([ [chunkIds...], { modules... }, runtime? ])
+        const arg0 = path.get("arguments.0");
+        if (!arg0 || !arg0.isArrayExpression()) return;
+
+        const elements = arg0.get("elements");
+        if (elements.length < 2) return;
+
+        const chunkIdsNode = elements[0];
+        const modulesNode = elements[1];
+
+        if (!chunkIdsNode?.isArrayExpression()) return;
+        if (!modulesNode?.isObjectExpression()) return;
+
+        // Extract chunk IDs (numbers or strings)
+        const chunkIds: Array<number | string> = chunkIdsNode
+          .get("elements")
+          .map((el) => {
+            if (el?.isNumericLiteral()) return el.node.value;
+            if (el?.isStringLiteral()) return el.node.value;
+            return undefined;
+          })
+          .filter((v): v is number | string => v !== undefined);
+
+        // Iterate : { <id>: function(...) { ... }, ... }
+        for (const propPath of modulesNode.get("properties")) {
+          if (!propPath.isObjectProperty()) continue;
+
+          // Read the module id key
+          const key = propPath.node.key;
+          let moduleId: number | string | undefined;
+          if (t.isIdentifier(key)) moduleId = key.name;
+          else if (t.isNumericLiteral(key)) moduleId = key.value;
+          else if (t.isStringLiteral(key)) moduleId = key.value;
+
+          if (moduleId === undefined) continue;
+
+          // Value should be a function (FunctionExpression or ArrowFunctionExpression)
+          const valPath = propPath.get("value") as NodePath<
+            FunctionExpression | ArrowFunctionExpression
+          >;
+          const isFn =
+            valPath.isFunctionExpression() ||
+            valPath.isArrowFunctionExpression();
+          if (!isFn) continue;
+
+          // normalize names
+          this.normalizeModuleParamNames(
+            valPath as NodePath<FunctionExpression | ArrowFunctionExpression>
+          );
+          this.demangleMinifiedBooleans(valPath as NodePath<FunctionExpression | ArrowFunctionExpression>);
+
+          // push one record per chunk id
+          for (const chunkId of chunkIds) {
+            modules.push({
+              file: this.currentFile,
+              element: valPath,
+              i: moduleId,
+              deps: [],
+
+              chunkId,
+              moduleId,
+              fn: valPath.node as
+                | t.FunctionExpression
+                | t.ArrowFunctionExpression,
+            } as unknown as Module);
+          }
+        }
+      },
+    });
+  }
+
+  /**
+   * Matches the target of `(...).push` for both:
+   *   (window.webpackJsonp = window.webpackJsonp || []).push(...)
+   *   (self.webpackChunkMyApp = self.webpackChunkMyApp || []).push(...)
+   *   window.webpackJsonp.push(...)   // rare but seen
+   *   self.webpackChunkX.push(...)
+   */
+  private isWebpackChunkArrayTarget(expr: t.Expression): boolean {
+    const isWebpackArrayMember = (m: t.MemberExpression) => {
+      const prop = t.isIdentifier(m.property)
+        ? m.property.name
+        : t.isStringLiteral(m.property)
+        ? m.property.value
+        : null;
+      return (
+        !!prop && (prop === "webpackJsonp" || prop.startsWith("webpackChunk"))
+      );
+    };
+
+    // Direct member, e.g. window.webpackJsonp.push(...)
+    if (t.isMemberExpression(expr) && isWebpackArrayMember(expr)) return true;
+
+    // Assignment case: (window.webpackJsonp = window.webpackJsonp || []).push(...)
+    if (t.isAssignmentExpression(expr)) {
+      const { left, right } = expr;
+      const leftOk = t.isMemberExpression(left) && isWebpackArrayMember(left);
+      const rightOk =
+        t.isLogicalExpression(right) &&
+        right.operator === "||" &&
+        t.isArrayExpression(right.right);
+      return leftOk && rightOk;
+    }
+
+    return false;
+  }
+
+  // @ts-ignore
   private parseArray(
     file: bblp.ParseResult<File>,
     ast: NodePath<ArrayExpression>,

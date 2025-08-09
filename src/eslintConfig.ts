@@ -114,7 +114,7 @@ const eslintConfig: Linter.Config = {
     "prefer-template": "error",
     "template-curly-spacing": "error",
     "no-else-return": "error",
-    "react/jsx-one-expression-per-line": "error",
+    // "react/jsx-one-expression-per-line": "error",
     "no-undef-init": "error",
     "prefer-object-spread": "error",
     "import/newline-after-import": "error",

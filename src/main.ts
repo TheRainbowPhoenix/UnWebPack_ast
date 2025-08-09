@@ -6,7 +6,8 @@ import prettier from "prettier";
 import eslintConfig from "./eslintConfig";
 
 async function start() {
-  let inFile = "../bundle.min.js"; // "./test/test.min.js";
+  let inFile = "../flare.rive.app/lib/Components.3babdd1411e10d21748a.js"; // "./test/test.min.js";
+  // let inFile = "../flare.rive.app/lib/vendor.max.js"; // "./test/test.min.js";
 
   console.log("Reading files...");
 
@@ -31,10 +32,15 @@ async function start() {
     let modules = await parser.parse(inFile);
     modules.forEach(async (mod) => {
       let code = generator(mod.element.node).code;
-
+      
       // Doing ESLint
       try {
-        const lintedCode = await eslint.lintText(code);
+        const lintedCode = await eslint.lintText("export default " + code);
+        if (lintedCode[0].messages.length >0 ) {
+          for (let msg of lintedCode[0].messages) {
+            console.warn(`At line ${msg.line} : ${msg.message}`)
+          }
+        }
         code = lintedCode[0].output ?? code;
       } catch (e) {}
 
