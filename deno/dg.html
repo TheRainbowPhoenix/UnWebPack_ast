@@ -29,6 +29,9 @@
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
             border: 1px solid #333;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
         }
         
         .main-content {
@@ -42,17 +45,18 @@
         }
         
         h1 {
-            margin: 0 0 20px 0;
+            margin: 0;
             color: #00d4ff;
             font-size: 24px;
             font-weight: 600;
         }
         
         h2 {
-            margin: 20px 0 15px 0;
+            padding: 0;
             color: #ffffff;
             font-size: 18px;
             font-weight: 500;
+            margin: 0;
         }
         
         .upload-area {
@@ -76,6 +80,10 @@
             transform: scale(1.02);
         }
         
+        .upload-area.hidden {
+            display: none;
+        }
+        
         input[type="file"] {
             display: none;
         }
@@ -97,7 +105,10 @@
         }
         
         .controls {
-            margin-bottom: 20px;
+            /* margin-bottom: 20px; */
+            gap: 10px;
+            display: flex;
+            flex-direction: column;
         }
         
         input[type="text"] {
@@ -108,7 +119,8 @@
             border-radius: 6px;
             color: #ffffff;
             font-size: 14px;
-            margin-bottom: 10px;
+            /* margin-bottom: 10px; */
+            box-sizing: border-box;
         }
         
         input[type="text"]:focus {
@@ -117,11 +129,35 @@
             box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
         }
         
+        select {
+            width: 100%;
+            padding: 10px;
+            background: #0f0f0f;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            color: #cccccc;
+        }
+        
+        input[type="checkbox"] {
+            margin-right: 8px;
+            scale: 1.2;
+        }
+        
         .stats {
             background: #0f0f0f;
             padding: 15px;
             border-radius: 8px;
             border: 1px solid #333;
+            /* margin-bottom: 20px; */
         }
         
         .stats div {
@@ -132,6 +168,93 @@
         .stats .highlight {
             color: #00d4ff;
             font-weight: 600;
+        }
+
+        /* Accordion styles */
+        .accordion {
+            /* margin-bottom: 20px; */
+        }
+        
+        .accordion-header {
+            background: #0f0f0f;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+        
+        .accordion-header:hover {
+            background: #1a1a1a;
+            border-color: #00d4ff;
+        }
+        
+        .accordion-header.active {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            border-bottom-color: transparent;
+        }
+        
+        .accordion-arrow {
+            transition: transform 0.3s ease;
+            color: #888;
+        }
+        
+        .accordion-header.active .accordion-arrow {
+            transform: rotate(180deg);
+            color: #00d4ff;
+        }
+        
+        .accordion-content {
+            background: #0f0f0f;
+            border: 1px solid #333;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 0 15px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .accordion-content.active {
+            max-height: 500px;
+        }
+
+        .accordion-content .accordion-spacer {
+            height: 15px;
+        }
+        
+        .layout-controls {
+            background: #0f0f0f;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        
+        .layout-btn {
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 2px;
+            transition: all 0.2s ease;
+        }
+        
+        .layout-btn:hover {
+            background: #00d4ff;
+        }
+        
+        .layout-btn.small {
+            padding: 4px 8px;
+            font-size: 10px;
         }
         
         #visualization {
@@ -166,6 +289,16 @@
             stroke-width: 3;
         }
         
+        .node.shadow {
+            opacity: 0.4;
+        }
+        
+        .node.shadow rect {
+            fill: #444;
+            stroke: #666;
+            stroke-dasharray: 5,5;
+        }
+        
         .node text {
             fill: #ffffff;
             font-size: 12px;
@@ -181,9 +314,24 @@
             fill: #00d4ff;
         }
         
+        .node.shadow .filename {
+            fill: #888;
+        }
+        
         .node .deps {
             font-size: 10px;
             fill: #94a3b8;
+        }
+        
+        .node.shadow .deps {
+            fill: #666;
+        }
+
+        /* Layout saved indicator */
+        .layout-indicator {
+            fill: #00d4ff;
+            r: 4;
+            opacity: 0.8;
         }
         
         .link {
@@ -206,6 +354,12 @@
             opacity: 1;
         }
         
+        .link.shadow {
+            stroke: #666;
+            stroke-dasharray: 3,3;
+            opacity: 0.3;
+        }
+        
         .tooltip {
             position: absolute;
             background: rgba(0,0,0,0.9);
@@ -217,6 +371,49 @@
             z-index: 1000;
             border: 1px solid #333;
             backdrop-filter: blur(10px);
+        }
+        
+        .node-context-menu {
+            position: absolute;
+            background: rgba(20,20,20,0.95);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 8px 0;
+            min-width: 180px;
+            z-index: 2000;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            pointer-events: auto;
+        }
+        
+        .node-context-menu.hidden {
+            display: none;
+        }
+        
+        .context-menu-item {
+            padding: 8px 16px;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s ease;
+            border-bottom: 1px solid #333;
+        }
+        
+        .context-menu-item:last-child {
+            border-bottom: none;
+        }
+        
+        .context-menu-item:hover {
+            background: #00d4ff20;
+            color: #00d4ff;
+        }
+        
+        .context-menu-item.separator {
+            border-top: 1px solid #444;
+            margin: 4px 0;
+            padding: 0;
+            height: 1px;
+            background: #444;
         }
         
         .zoom-controls {
@@ -250,11 +447,12 @@
         }
         
         .module-list {
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
             border: 1px solid #333;
             border-radius: 6px;
             background: #0f0f0f;
+            height: auto;
         }
         
         .module-item {
@@ -262,7 +460,10 @@
             border-bottom: 1px solid #222;
             cursor: pointer;
             font-size: 12px;
-            transition: background 0.2s ease;
+            transition: background-color 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .module-item:hover {
@@ -272,6 +473,35 @@
         .module-item.highlighted {
             background: #00d4ff20;
             border-left: 3px solid #00d4ff;
+        }
+        
+        .module-layout-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00d4ff;
+            opacity: 0.8;
+            margin-left: 5px;
+        }
+        
+        .current-view-info {
+            background: #0f0f0f;
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            /* margin-bottom: 20px; */
+            font-size: 12px;
+        }
+        
+        .current-view-info .view-type {
+            color: #00d4ff;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .current-view-info .view-details {
+            color: #888;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -300,14 +530,72 @@
                 <input type="text" id="focusInput" placeholder="Focus on module (e.g., 245)" onkeyup="focusModule()">
             </div>
             
+            <div class="current-view-info" id="currentViewInfo">
+                <div class="view-type">All Modules</div>
+                <div class="view-details">Showing complete dependency graph</div>
+            </div>
+            
             <div class="stats" id="stats">
                 <div>Total Modules: <span class="highlight">0</span></div>
                 <div>Total Dependencies: <span class="highlight">0</span></div>
                 <div>Orphaned Modules: <span class="highlight">0</span></div>
             </div>
             
-            <div style="margin-top: 20px;">
-                <h2>Modules</h2>
+            <!-- Advanced Options Accordion -->
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion('advancedOptions')">
+                    <span>Advanced Options</span>
+                    <span class="accordion-arrow">▼</span>
+                </div>
+                <div class="accordion-content" id="advancedOptions">
+                    <div class="accordion-spacer"></div>    
+
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="showShadowNodes" onchange="toggleShadowNodes()">
+                        <label for="showShadowNodes">Show missing dependencies</label>
+                    </div>
+                    
+                    <select id="recursiveLevel">
+                        <option value="1">1 Level (Direct only)</option>
+                        <option value="2">2 Levels</option>
+                        <option value="3">3 Levels</option>
+                        <option value="4">4 Levels</option>
+                        <option value="5">5 Levels</option>
+                    </select>
+                    
+                    <input type="text" id="vscodePath" placeholder="VSCode path (optional)" 
+                           value="C:\Users\Phoebe\Downloads\old\flare\UnWebPack_ast\deno\out">
+                    
+                    <div class="accordion-spacer"></div>
+                </div>
+            </div>
+            
+            <!-- Layout Control Accordion -->
+            <div class="accordion">
+                <div class="accordion-header" onclick="toggleAccordion('layoutControls')">
+                    <span>Layout Control</span>
+                    <span class="accordion-arrow">▼</span>
+                </div>
+                <div class="accordion-content" id="layoutControls">
+                    <div class="accordion-spacer"></div>
+                    <div style="margin-bottom: 10px;">
+                        <button class="layout-btn" onclick="saveLayout()">Save Layout</button>
+                        <button class="layout-btn" onclick="loadLayout()">Load Layout</button>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <button class="layout-btn small" onclick="exportLayoutJSON()">Export JSON</button>
+                        <button class="layout-btn small" onclick="importLayoutJSON()">Import JSON</button>
+                        <input type="file" id="layoutFileInput" accept=".json" style="display:none;">
+                    </div>
+                    <div style="font-size: 11px; color: #888;">
+                        Layout saved: <span id="layoutSavedIndicator">none</span>
+                    </div>
+                    <div class="accordion-spacer"></div>
+                </div>
+            </div>
+            
+            <div>
+                <h2 style="padding-bottom: 12px;">Modules</h2>
                 <div class="module-list" id="moduleList"></div>
             </div>
         </div>
@@ -323,20 +611,38 @@
     </div>
     
     <div class="tooltip" id="tooltip" style="display: none;"></div>
+    <!-- <div class="context-menu" id="contextMenu" style="display: none;"></div> -->
 
     <script>
+        // Configuration - can be overridden by URL params
+        let config = {
+            vscodePath: "C:\\Users\\Phoebe\\Downloads\\old\\flare\\UnWebPack_ast\\deno\\out",
+            baseUrl: "/out"
+        };
+        
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('vscodePath')) config.vscodePath = urlParams.get('vscodePath');
+        if (urlParams.get('baseUrl')) config.baseUrl = urlParams.get('baseUrl');
+        
         let dependencyData = {};
         let filteredData = {};
         let graphData = { nodes: [], links: [] }; // For JSON format
         let simulation;
         let svg, g, zoom;
         let selectedNode = null;
+        let selectedNodeElement = null;
+        let currentView = "all"; // "all", "focus:123", "dependencies:123", "usage:123"
+        let showShadowNodes = false;
         
         // Set up SVG and zoom
         function initVisualization() {
             svg = d3.select("#visualization");
             const container = svg.node().getBoundingClientRect();
             svg.attr("width", container.width).attr("height", container.height);
+            
+            // Update VSCode path input with config
+            document.getElementById('vscodePath').value = config.vscodePath;
             
             // Create arrow marker
             svg.append("defs").append("marker")
@@ -359,6 +665,18 @@
             
             svg.call(zoom);
             g = svg.append("g");
+            
+            // Hide context menu on click outside
+            document.addEventListener('click', hideNodeContextMenu);
+        }
+        
+        // Accordion functionality
+        function toggleAccordion(accordionId) {
+            const header = event.target.closest('.accordion-header');
+            const content = document.getElementById(accordionId);
+            
+            header.classList.toggle('active');
+            content.classList.toggle('active');
         }
         
         // File processing
@@ -457,8 +775,12 @@
                 });
             });
             
+            // Hide upload area after data is loaded
+            document.getElementById('uploadArea').classList.add('hidden');
+            
             updateStats();
             updateModuleList();
+            updateCurrentViewInfo();
             visualizeGraph();
         }
         
@@ -505,8 +827,12 @@
                 }
             });
             
+            // Hide upload area after data is loaded
+            document.getElementById('uploadArea').classList.add('hidden');
+            
             updateStats();
             updateModuleList();
+            updateCurrentViewInfo();
             visualizeGraph();
         }
         
@@ -522,16 +848,251 @@
             `;
         }
         
+        function updateCurrentViewInfo() {
+            const info = document.getElementById('currentViewInfo');
+            let viewType = 'All Modules';
+            let viewDetails = 'Showing complete dependency graph';
+            
+            if (currentView.startsWith('focus:')) {
+                const moduleId = currentView.split(':')[1];
+                viewType = `Focus: Module ${moduleId}`;
+                viewDetails = 'Showing direct dependencies and dependents';
+            } else if (currentView.startsWith('dependencies:')) {
+                const moduleId = currentView.split(':')[1];
+                const level = document.getElementById('recursiveLevel').value;
+                viewType = `Dependencies: Module ${moduleId}`;
+                viewDetails = `Showing ${level} level${level > 1 ? 's' : ''} of dependencies`;
+            } else if (currentView.startsWith('usage:')) {
+                const moduleId = currentView.split(':')[1];
+                const level = document.getElementById('recursiveLevel').value;
+                viewType = `Usage: Module ${moduleId}`;
+                viewDetails = `Showing ${level} level${level > 1 ? 's' : ''} of usage`;
+            }
+            
+            info.innerHTML = `
+                <div class="view-type">${viewType}</div>
+                <div class="view-details">${viewDetails}</div>
+            `;
+        }
+
+        function visualizeGraph() {
+            const data = Object.keys(filteredData).length > 0 ? filteredData : dependencyData;
+            
+            if (Object.keys(data).length === 0) return;
+            
+            // Clear existing visualization
+            g.selectAll("*").remove();
+            hideNodeContextMenu();
+            
+            // Prepare nodes and links (including shadow nodes if enabled)
+            const nodes = [];
+            const links = [];
+            const shadowNodeIds = new Set();
+            
+            // Add existing nodes
+            Object.values(data).forEach(mod => {
+                nodes.push({
+                    id: mod.id,
+                    filename: mod.filename,
+                    label: mod.label,
+                    dependencies: mod.dependencies,
+                    dependents: mod.dependents,
+                    exists: true,
+                    x: mod.x || Math.random() * 800,
+                    y: mod.y || Math.random() * 600
+                });
+            });
+            
+            // Create links and identify shadow nodes
+            Object.values(data).forEach(mod => {
+                mod.dependencies.forEach(depId => {
+                    if (data[depId]) {
+                        links.push({
+                            source: mod.id,
+                            target: depId,
+                            exists: true
+                        });
+                    } else if (showShadowNodes) {
+                        // Add shadow node if not exists
+                        if (!shadowNodeIds.has(depId)) {
+                            shadowNodeIds.add(depId);
+                            nodes.push({
+                                id: depId,
+                                filename: `mod_${depId}.js`,
+                                label: `mod_${depId}`,
+                                dependencies: [],
+                                dependents: [],
+                                exists: false,
+                                x: Math.random() * 800,
+                                y: Math.random() * 600
+                            });
+                        }
+                        links.push({
+                            source: mod.id,
+                            target: depId,
+                            exists: false
+                        });
+                    }
+                });
+            });
+            
+            // Load saved positions
+            loadNodePositions(nodes);
+            
+            // Create force simulation
+            const width = +svg.attr("width");
+            const height = +svg.attr("height");
+            
+            simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+                .force("charge", d3.forceManyBody().strength(-300))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide(60))
+                .alphaDecay(0.02)
+                .velocityDecay(0.6);
+            
+            // Stop simulation after 10 seconds
+            setTimeout(() => {
+                simulation.alphaTarget(0).restart();
+                setTimeout(() => {
+                    simulation.stop();
+                    console.log("Physics simulation stopped - nodes can now be freely dragged");
+                }, 2000);
+            }, 10000);
+            
+            // Create links
+            const link = g.append("g")
+                .selectAll("path")
+                .data(links)
+                .enter().append("path")
+                .attr("class", d => `link ${d.exists ? '' : 'shadow'}`)
+                .attr("stroke-width", 2);
+            
+            // Create nodes
+            const node = g.append("g")
+                .selectAll(".node")
+                .data(nodes)
+                .enter().append("g")
+                .attr("class", d => `node ${d.exists ? '' : 'shadow'}`)
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+            
+            // Add rectangles to nodes
+            node.append("rect")
+                .attr("width", 120)
+                .attr("height", 60)
+                .attr("x", -60)
+                .attr("y", -30);
+            
+            // Add layout saved indicator (blue dot)
+            node.filter(d => hasLayoutSaved(d.id))
+                .append("circle")
+                .attr("class", "layout-indicator")
+                .attr("cx", 50)
+                .attr("cy", -20)
+                .attr("r", 4);
+            
+            // Add filename text
+            node.append("text")
+                .attr("class", "filename")
+                .attr("y", -8)
+                .text(d => d.label || `mod_${d.id}.js`);
+            
+            // Add dependency count
+            node.append("text")
+                .attr("class", "deps")
+                .attr("y", 8)
+                .text(d => `${d.dependencies.length} deps`);
+            
+            // Add used by count
+            node.append("text")
+                .attr("class", "deps")
+                .attr("y", 20)
+                .text(d => `${d.dependents.length} refs`);
+            
+            // Add click events
+            node.on("click", function(event, d) {
+                event.stopPropagation();
+                
+                if (selectedNode === d.id) {
+                    // Deselect
+                    selectedNode = null;
+                    selectedNodeElement = null;
+                    node.classed("selected", false);
+                    link.classed("highlighted", false);
+                    hideNodeContextMenu();
+                } else {
+                    // Select new node
+                    selectedNode = d.id;
+                    selectedNodeElement = this;
+                    node.classed("selected", n => n.id === d.id);
+                    
+                    // Highlight related links
+                    link.classed("highlighted", l => l.source.id === d.id || l.target.id === d.id);
+                    
+                    // Show context menu next to selected node
+                    showNodeContextMenu(d, this);
+                }
+            });
+            
+            // node.on("contextmenu", function(event, d) {
+            //     event.preventDefault();
+            //     showNodeContextMenu(event, d);
+            // });
+            
+            // Add tooltips
+            node.on("mouseover", function(event, d) {
+                if (selectedNode === d.id) return; // Don't show tooltip for selected node
+                const tooltip = document.getElementById('tooltip');
+                tooltip.style.display = 'block';
+                tooltip.style.left = (event.pageX + 10) + 'px';
+                tooltip.style.top = (event.pageY - 10) + 'px';
+                tooltip.innerHTML = `
+                    <strong>${d.filename}</strong><br>
+                    Dependencies: ${d.dependencies.join(', ') || 'None'}<br>
+                    Used by: ${d.dependents.join(', ') || 'None'}${d.exists ? '' : '<br><em>Missing file</em>'}
+                `;
+            })
+            .on("mouseout", function() {
+                document.getElementById('tooltip').style.display = 'none';
+            });
+            
+            // Update positions on simulation tick
+            simulation.on("tick", () => {
+                link.attr("d", d => {
+                    const dx = d.target.x - d.source.x;
+                    const dy = d.target.y - d.source.y;
+                    const dr = Math.sqrt(dx * dx + dy * dy);
+                    return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+                });
+                
+                node.attr("transform", d => `translate(${d.x},${d.y})`);
+                
+                // Update context menu position if a node is selected
+                if (selectedNode && selectedNodeElement) {
+                    updateNodeContextMenuPosition();
+                }
+            });
+        }
+        
         function updateModuleList() {
             const moduleList = document.getElementById('moduleList');
             const modules = Object.values(dependencyData).sort((a, b) => parseInt(a.id) - parseInt(b.id));
             
-            moduleList.innerHTML = modules.map(mod => `
-                <div class="module-item" data-id="${mod.id}" onclick="highlightModule('${mod.id}')">
-                    <strong>${mod.label || mod.filename}</strong><br>
-                    <small>Deps: ${mod.dependencies.length} | Used by: ${mod.dependents.length}</small>
-                </div>
-            `).join('');
+            moduleList.innerHTML = modules.map(mod => {
+                const hasLayout = hasLayoutSaved(mod.id);
+                return `
+                    <div class="module-item" data-id="${mod.id}" onclick="highlightModule('${mod.id}')">
+                        <div>
+                            <strong>${mod.label || mod.filename}</strong><br>
+                            <small>Deps: ${mod.dependencies.length} | Used by: ${mod.dependents.length}</small>
+                        </div>
+                        ${hasLayout ? '<div class="module-layout-indicator"></div>' : ''}
+                    </div>
+                `;
+            }).join('');
         }
         
         function filterModules() {
@@ -540,24 +1101,30 @@
             
             items.forEach(item => {
                 const text = item.textContent.toLowerCase();
-                item.style.display = text.includes(searchTerm) ? 'block' : 'none';
+                item.style.display = text.includes(searchTerm) ? 'flex' : 'none';
             });
         }
         
         function focusModule() {
             const focusTerm = document.getElementById('focusInput').value.trim();
             if (!focusTerm) {
-                filteredData = dependencyData;
+                filteredData = {};
+                currentView = "all";
+                updateCurrentViewInfo();
                 visualizeGraph();
                 return;
             }
             
             const targetModule = dependencyData[focusTerm];
             if (!targetModule) {
-                filteredData = dependencyData;
+                filteredData = {};
+                currentView = "all";
+                updateCurrentViewInfo();
                 visualizeGraph();
                 return;
             }
+            
+            currentView = `focus:${focusTerm}`;
             
             // Create filtered data with target module and its direct dependencies/dependents
             filteredData = {};
@@ -581,6 +1148,16 @@
                 }
             });
             
+            // updateCurrentViewDisplay();
+            updateCurrentViewInfo();
+
+            // Auto-load layout if available
+            setTimeout(() => {
+                if (hasLayoutSaved()) {
+                    loadLayout();
+                }
+            }, 100);
+
             visualizeGraph();
         }
         
@@ -724,6 +1301,257 @@
             });
         }
         
+        // Dependency/Usage View Functions
+        function viewDependencies(moduleId) {
+            const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
+            currentView = `dependencies:${moduleId}`;
+            
+            filteredData = {};
+            const relatedIds = new Set();
+            
+            function addDependenciesRecursive(id, level) {
+                if (level > recursiveLevel || !dependencyData[id]) return;
+                
+                relatedIds.add(id);
+                if (dependencyData[id]) {
+                    dependencyData[id].dependencies.forEach(depId => {
+                        addDependenciesRecursive(depId, level + 1);
+                    });
+                }
+            }
+            
+            addDependenciesRecursive(moduleId, 1);
+            
+            relatedIds.forEach(id => {
+                if (dependencyData[id]) {
+                    filteredData[id] = { ...dependencyData[id] };
+                    // Keep only dependencies that are in the related set
+                    filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => 
+                        relatedIds.has(depId) || showShadowNodes
+                    );
+                }
+            });
+            
+            // updateCurrentViewDisplay();
+            updateCurrentViewInfo();
+            hideNodeContextMenu();
+            
+            // Auto-load layout if available
+            setTimeout(() => {
+                if (hasLayoutSaved()) {
+                    loadLayout();
+                }
+            }, 100);
+
+            visualizeGraph();
+        }
+        
+        function viewUsage(moduleId) {
+            const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
+            currentView = `usage:${moduleId}`;
+            
+            filteredData = {};
+            const relatedIds = new Set();
+            
+            function addUsageRecursive(id, level) {
+                if (level > recursiveLevel || !dependencyData[id]) return;
+                
+                relatedIds.add(id);
+                if (dependencyData[id]) {
+                    dependencyData[id].dependents.forEach(depId => {
+                        addUsageRecursive(depId, level + 1);
+                    });
+                }
+            }
+            
+            addUsageRecursive(moduleId, 1);
+            
+            relatedIds.forEach(id => {
+                if (dependencyData[id]) {
+                    filteredData[id] = { ...dependencyData[id] };
+                    // Filter dependencies to only show relevant connections
+                    filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => 
+                        relatedIds.has(depId)
+                    );
+                }
+            });
+            
+            // updateCurrentViewDisplay();
+            
+            updateCurrentViewInfo();
+            hideNodeContextMenu();
+            
+            // Auto-load layout if available
+            setTimeout(() => {
+                if (hasLayoutSaved()) {
+                    loadLayout();
+                }
+            }, 100);
+
+            visualizeGraph();
+        }
+        
+        // Shadow Nodes Toggle
+        function toggleShadowNodes() {
+            showShadowNodes = document.getElementById('showShadowNodes').checked;
+            visualizeGraph();
+        }
+        
+        // Layout Management Functions
+        function getLayoutKey(moduleId = null) {
+            // return `layout_${currentView}`;
+            const viewKey = moduleId ? `focus:${moduleId}` : currentView;
+            return `layout_${viewKey}`;
+        }
+        
+        function hasLayoutSaved(moduleId = null) {
+            const layoutKey = getLayoutKey(moduleId);
+            return localStorage.getItem(layoutKey) !== null;
+        }
+        
+        function saveLayout() {
+            if (!simulation) return;
+            
+            const positions = {};
+            g.selectAll('.node').each(function(d) {
+                positions[d.id] = { x: d.x, y: d.y };
+            });
+            
+            const layoutData = {
+                positions: positions,
+                view: currentView,
+                timestamp: Date.now()
+            };
+            
+            localStorage.setItem(getLayoutKey(), JSON.stringify(layoutData));
+            console.log(`Layout saved for view: ${currentView}`);
+            
+            // Update layout indicator
+            updateLayoutSavedIndicator();
+            
+            // Update module list to show layout indicators
+            updateModuleList();
+            
+            // Update visual indicators on nodes
+            // visualizeGraph();
+        }
+        
+        function loadLayout() {
+            const layoutKey = getLayoutKey();
+            const savedLayout = localStorage.getItem(layoutKey);
+            
+            if (!savedLayout) {
+                console.log(`No saved layout found for view: ${currentView}`);
+                return;
+            }
+            
+            const layoutData = JSON.parse(savedLayout);
+            
+            // Apply positions to current nodes
+            g.selectAll('.node').each(function(d) {
+                if (layoutData.positions[d.id]) {
+                    d.x = layoutData.positions[d.id].x;
+                    d.y = layoutData.positions[d.id].y;
+                    d.fx = d.x;
+                    d.fy = d.y;
+                }
+            });
+            
+            // Update visual positions immediately
+            g.selectAll('.node').attr("transform", d => `translate(${d.x},${d.y})`);
+            
+            // Update links
+            g.selectAll(".link").attr("d", d => {
+                const dx = d.target.x - d.source.x;
+                const dy = d.target.y - d.source.y;
+                const dr = Math.sqrt(dx * dx + dy * dy);
+                return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+            });
+            
+            console.log(`Layout loaded for view: ${currentView}`);
+        }
+        
+        function loadNodePositions(nodes) {
+            const layoutKey = getLayoutKey();
+            const savedLayout = localStorage.getItem(layoutKey);
+            
+            if (savedLayout) {
+                const layoutData = JSON.parse(savedLayout);
+                nodes.forEach(node => {
+                    if (layoutData.positions[node.id]) {
+                        node.x = layoutData.positions[node.id].x;
+                        node.y = layoutData.positions[node.id].y;
+                    }
+                });
+            }
+        }
+        
+        function updateLayoutSavedIndicator() {
+            const indicator = document.getElementById('layoutSavedIndicator');
+            if (hasLayoutSaved()) {
+                indicator.textContent = 'yes';
+                indicator.style.color = '#00d4ff';
+            } else {
+                indicator.textContent = 'none';
+                indicator.style.color = '#888';
+            }
+        }
+        
+        function exportLayoutJSON() {
+            const allLayouts = {};
+            
+            // Get all saved layouts from localStorage
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('layout_')) {
+                    allLayouts[key] = JSON.parse(localStorage.getItem(key));
+                }
+            }
+            
+            const dataStr = JSON.stringify(allLayouts, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'layouts.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function importLayoutJSON() {
+            document.getElementById('layoutFileInput').click();
+        }
+        
+        // Layout file input handler
+        document.getElementById('layoutFileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'application/json') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const layouts = JSON.parse(e.target.result);
+                        
+                        // Import all layouts to localStorage
+                        Object.keys(layouts).forEach(key => {
+                            localStorage.setItem(key, JSON.stringify(layouts[key]));
+                        });
+                        
+                        console.log(`Imported ${Object.keys(layouts).length} layouts`);
+                        updateLayoutSavedIndicator();
+                        updateModuleList();
+                        loadLayout(); // Load current view if available
+                    } catch (error) {
+                        alert('Error parsing layout file: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+        
+        function updateCurrentViewDisplay() {
+            document.getElementById('currentLayoutView').textContent = currentView;
+        }
+
         function highlightModule(moduleId) {
             // Clear previous highlights
             document.querySelectorAll('.module-item').forEach(item => {
@@ -738,6 +1566,102 @@
             focusModule();
         }
         
+        // Context Menu Functions
+        function showNodeContextMenu(event, nodeData) { // nodeElement
+            hideNodeContextMenu(); // Hide any existing menu
+
+            // const menu = document.getElementById('contextMenu');
+            const vscodePathInput = document.getElementById('vscodePath');
+            const currentVscodePath = vscodePathInput.value || config.vscodePath;
+            
+            let menuHTML = '';
+            
+            if (nodeData.exists) {
+                menuHTML += `<div class="context-menu-item" onclick="openInVSCode('${nodeData.id}', '${currentVscodePath.replace(/\\/g, '\\\\')}')">Open in VSCode</div>`;
+                menuHTML += `<div class="context-menu-item" onclick="openFileContent('${nodeData.id}')">Open file content</div>`;
+                menuHTML += '<div class="context-menu-item separator"></div>';
+            }
+            
+            menuHTML += `<div class="context-menu-item" onclick="viewDependencies('${nodeData.id}')">View Dependencies</div>`;
+            menuHTML += `<div class="context-menu-item" onclick="viewUsage('${nodeData.id}')">View Usage</div>`;
+            
+            const menu = document.createElement('div');
+            menu.id = 'nodeContextMenu';
+            menu.className = 'node-context-menu';
+            menu.innerHTML = menuHTML;
+
+            // menu.style.display = 'block';
+            // menu.style.left = event.pageX + 'px';
+            // menu.style.top = event.pageY + 'px';
+
+            // Position menu relative to the node
+            const nodeTransform = nodeElement.getAttribute('transform');
+            const match = nodeTransform.match(/translate\(([^,]+),([^)]+)\)/);
+            if (match) {
+                const nodeX = parseFloat(match[1]);
+                const nodeY = parseFloat(match[2]);
+                
+                // Get the current zoom transform
+                const zoomTransform = d3.zoomTransform(svg.node());
+                const screenX = (nodeX * zoomTransform.k) + zoomTransform.x;
+                const screenY = (nodeY * zoomTransform.k) + zoomTransform.y;
+                
+                // Position menu to the right of the node
+                menu.style.left = (screenX + 70) + 'px';
+                menu.style.top = (screenY - 50) + 'px';
+            }
+            
+            document.body.appendChild(menu);
+        }
+
+        function updateNodeContextMenuPosition() {
+            const menu = document.getElementById('nodeContextMenu');
+            if (!menu || !selectedNodeElement) return;
+            
+            const nodeTransform = selectedNodeElement.getAttribute('transform');
+            const match = nodeTransform.match(/translate\(([^,]+),([^)]+)\)/);
+            if (match) {
+                const nodeX = parseFloat(match[1]);
+                const nodeY = parseFloat(match[2]);
+                
+                // Get the current zoom transform
+                const zoomTransform = d3.zoomTransform(svg.node());
+                const screenX = (nodeX * zoomTransform.k) + zoomTransform.x;
+                const screenY = (nodeY * zoomTransform.k) + zoomTransform.y;
+                
+                // Position menu to the right of the node
+                menu.style.left = (screenX + 70) + 'px';
+                menu.style.top = (screenY - 50) + 'px';
+            }
+        }
+        
+        function hideNodeContextMenu() {
+            const menu = document.getElementById('nodeContextMenu');
+            if (menu) {
+                menu.remove();
+            }
+        }
+        
+        function openInVSCode(nodeId, vscodePath) {
+            const nodeData = (filteredData[nodeId] || dependencyData[nodeId]);
+            if (!nodeData) return;
+            
+            const fullPath = `${vscodePath}\\${nodeData.filename}`;
+            // Create vscode:// protocol URL
+            const vscodeUrl = `vscode://file/${fullPath.replace(/\\/g, '/')}`;
+            window.open(vscodeUrl, '_blank');
+            hideNodeContextMenu();
+        }
+        
+        function openFileContent(nodeId) {
+            const nodeData = (filteredData[nodeId] || dependencyData[nodeId]);
+            if (!nodeData) return;
+            
+            const fileUrl = `${config.baseUrl}/${nodeData.filename}`;
+            window.open(fileUrl, '_blank');
+            hideNodeContextMenu();
+        }
+
         // Drag functions
         function dragstarted(event, d) {
             // Only restart simulation if it's still running
@@ -771,6 +1695,11 @@
                     }
                     return d3.select(this).attr("d");
                 });
+                
+                // Update context menu position if this is the selected node
+                if (selectedNode === d.id) {
+                    updateNodeContextMenuPosition();
+                }
             }
         }
         
@@ -797,6 +1726,7 @@
         
         // Initialize
         initVisualization();
+        updateLayoutSavedIndicator();
         
         // Export functionality
         function exportData() {
