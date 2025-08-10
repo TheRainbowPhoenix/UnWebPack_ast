@@ -5,6 +5,8 @@ Mainly useful for webapp analysis and RE. Tool I use a lot.
 
 It made it easier to copy paste chunk to LLM and ask them what the lib is (try this with chatGPT, pretending it's a game like `small game ! Can you guess from which js library that was compiled ? <CODE HERE>` and it should work)
 
+![screenshot](docs/image.png)
+
 ## Usage
 The main app is node js, but because it's old and I don't do much node anymore I rewrote and updated it to `deno`, check the subfolder. Please install deno. Do it now. Deno.
 

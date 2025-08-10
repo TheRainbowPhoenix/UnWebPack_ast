@@ -1,14 +1,47 @@
 {
     "0":"React", // React 16.14.0
+    "23":"ReactDOM_DCE",
+    "794":"React_production", // React 16.14.0
+    "795":"ReactDOM_production", // React 16.14.0
+    "796":"Scheduler", // Scheduler 0.19.1
+    "797":"Scheduler_production", // Scheduler 0.19.1
+    "4": "propTypes", // ptr => prop-types 
+    "804": "prop_types", // prop-types
+
+    "5": "immutable", // 'gl-matrix'
     "2": "glMatrix", // 'gl-matrix'
     "6": "moment",
+
     "7": "makeCssList", // const makeCssList = require('css-loader/lib/css-base'); const cssExports = makeCssList(false); cssExports.push([ module_id, ".css data", 'media_query', source_map]) 
-    // "3":"ReactDOM",
+    "21": "slate", // slate/src/index
+
     // "245":"classnames",
     "172": "slate_editor", // slate-react/src/components/editor
     "207": "get_window", // get-window
+    "655": "esrever", // esrever 0.2.0
+    "210": "isPlainObject", // import isPlainObject from 'is-plain-object'
+    "209": "tiny_warning", // import warning from 'tiny-warning'
+    "244": "tiny_invariant", // import invariant from 'tiny-invariant'
+    "354": "debug", // import Debug from 'debug'
+    "549": "debug", // import Debug from 'debug'
+    "553": "nodeProcess", // require('process'); browser implementation
+    "663": "ms", // ms/index.js
     "659": "object_assign", // _assign = require('object-assign');
-    "794":"React_production", // React 16.14.0
     "881": "get_document", // get-document
-    "882": "needsIEFallback" // get-window/needs-ie-fallback
+    "882": "needsIEFallback", // get-window/needs-ie-fallback
+    "884": "debug_common", // debug/src/common.js
+
+    "181": "amplitude", // gh:amplitude/Amplitude-JavaScript
+    "508": "core_js", // corejs 2.5.7
+    "376": "webpack_runtime_global", // webpack/runtime/global
+
+    "355": "lodash_root", // lodash/_root
+    "665": "freeGlobal", // lodash/_freeGlobal
+    "395": "isArray", // lodash/isArray
+    "495": "isSymbol", // lodash/isSymbol
+    "441": "baseGetTag", // lodash/_baseGetTag
+    "408": "isObjectLike", // lodash/isObjectLike
+    "458": "Symbol", // lodash/_Symbol
+    "888": "getRawTag", // lodash/_getRawTag
+    "889": "objectToString" // lodash/_getRawTag
 }
