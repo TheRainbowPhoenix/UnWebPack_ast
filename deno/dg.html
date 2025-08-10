@@ -611,7 +611,6 @@
     </div>
     
     <div class="tooltip" id="tooltip" style="display: none;"></div>
-    <!-- <div class="context-menu" id="contextMenu" style="display: none;"></div> -->
 
     <script>
         // Configuration - can be overridden by URL params
@@ -675,20 +674,19 @@
             const container = svg.node().getBoundingClientRect();
             svg.attr("width", container.width).attr("height", container.height);
             
-            // Update VSCode path input with config
             document.getElementById('vscodePath').value = config.vscodePath;
             
-            // Create arrow marker
+            // Create arrow marker definition
             svg.append("defs").append("marker")
                 .attr("id", "arrowhead")
-                .attr("viewBox", "0 -5 10 10")
-                .attr("refX", 15)
+                .attr("viewBox", "-0 -5 10 10")
+                .attr("refX", 8) // Lowered to keep arrow tip on the line
                 .attr("refY", 0)
-                .attr("markerWidth", 6)
-                .attr("markerHeight", 6)
+                .attr("markerWidth", 10) // Increased size
+                .attr("markerHeight", 10)
                 .attr("orient", "auto")
                 .append("path")
-                .attr("d", "M0,-5L10,0L0,5")
+                .attr("d", "M0,-4L8,0L0,4") // Made arrow shape larger
                 .attr("fill", "#475569");
             
             zoom = d3.zoom()
@@ -700,7 +698,6 @@
             svg.call(zoom);
             g = svg.append("g");
             
-            // Hide context menu on click outside
             document.addEventListener('click', hideNodeContextMenu);
         }
         
@@ -719,7 +716,6 @@
             processFiles(files);
         });
         
-        // JSON file processing
         document.getElementById('jsonInput').addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (file && file.type === 'application/json') {
@@ -738,21 +734,13 @@
         
         // Drag and drop
         const uploadArea = document.getElementById('uploadArea');
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-        
+        uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => { uploadArea.classList.remove('dragover'); });
         uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             uploadArea.classList.remove('dragover');
             const files = Array.from(e.dataTransfer.files);
             
-            // Check if it's a JSON file
             const jsonFile = files.find(file => file.name.endsWith('.json'));
             if (jsonFile) {
                 const reader = new FileReader();
@@ -780,7 +768,6 @@
                 const content = await file.text();
                 const moduleId = file.name.match(/mod_(\d+)\.js$/)[1];
                 
-                // Extract __webpack_require__ calls
                 const requireRegex = /__webpack_require__\((\d+)\)/g;
                 const dependencies = [];
                 let match;
@@ -796,11 +783,10 @@
                     id: moduleId,
                     filename: file.name,
                     dependencies: dependencies,
-                    dependents: [] // Will be populated later
+                    dependents: [] 
                 };
             }
             
-            // Calculate dependents (reverse dependencies)
             Object.values(dependencyData).forEach(module => {
                 module.dependencies.forEach(depId => {
                     if (dependencyData[depId]) {
@@ -809,33 +795,25 @@
                 });
             });
 
-            applyAliases();
-            
-            // Hide upload area after data is loaded
+            await applyAliases();
             document.getElementById('uploadArea').classList.add('hidden');
-            
             updateStats();
             updateModuleList();
             updateCurrentViewInfo();
             visualizeGraph();
         }
         
-        function loadFromJSON(jsonData) {
+        async function loadFromJSON(jsonData) {
             console.log('Loading from JSON data...', jsonData);
             
-            // Validate JSON structure
             if (!jsonData.nodes || !jsonData.links) {
                 alert('Invalid JSON format. Expected "nodes" and "links" arrays.');
                 return;
             }
             
-            // Store original graph data
             graphData = jsonData;
-            
-            // Convert to internal format
             dependencyData = {};
             
-            // Initialize all nodes
             jsonData.nodes.forEach(node => {
                 dependencyData[node.id.toString()] = {
                     id: node.id.toString(),
@@ -846,28 +824,22 @@
                 };
             });
             
-            // Process links to build dependencies
             jsonData.links.forEach(link => {
                 const sourceId = link.source.toString();
                 const targetId = link.target.toString();
                 
                 if (dependencyData[sourceId] && dependencyData[targetId]) {
-                    // Source depends on target
                     if (!dependencyData[sourceId].dependencies.includes(targetId)) {
                         dependencyData[sourceId].dependencies.push(targetId);
                     }
-                    // Target is used by source
                     if (!dependencyData[targetId].dependents.includes(sourceId)) {
                         dependencyData[targetId].dependents.push(sourceId);
                     }
                 }
             });
-
-            applyAliases();
             
-            // Hide upload area after data is loaded
+            await applyAliases();
             document.getElementById('uploadArea').classList.add('hidden');
-            
             updateStats();
             updateModuleList();
             updateCurrentViewInfo();
@@ -913,23 +885,38 @@
             `;
         }
 
+        function calculateLinkPath(d) {
+            if (!d.source || !d.target) return "";
+            
+            const targetPadding = 65; // ~Half the node width + stroke
+            const dx = d.target.x - d.source.x;
+            const dy = d.target.y - d.source.y;
+            const dr = Math.sqrt(dx * dx + dy * dy);
+
+            if (dr === 0) return ""; 
+
+            // Calculate the new target point that ends just before the node box
+            const targetX = d.target.x - (dx / dr) * targetPadding;
+            const targetY = d.target.y - (dy / dr) * targetPadding;
+
+            return `M${d.source.x},${d.source.y}L${targetX},${targetY}`;
+        }
+
         function visualizeGraph() {
             const data = Object.keys(filteredData).length > 0 ? filteredData : dependencyData;
             
             if (Object.keys(data).length === 0) return;
             
-            // Clear existing visualization
             g.selectAll("*").remove();
             hideNodeContextMenu();
             
-            // Prepare nodes and links (including shadow nodes if enabled)
             const nodes = [];
             const links = [];
             const shadowNodeIds = new Set();
-            
-            // Add existing nodes
+            const nodeById = new Map();
+
             Object.values(data).forEach(mod => {
-                nodes.push({
+                const node = {
                     id: mod.id,
                     filename: mod.filename,
                     label: mod.label,
@@ -938,76 +925,50 @@
                     exists: true,
                     x: mod.x || Math.random() * 800,
                     y: mod.y || Math.random() * 600
-                });
+                };
+                nodes.push(node);
+                nodeById.set(node.id, node);
             });
             
-            // Create links and identify shadow nodes
             Object.values(data).forEach(mod => {
                 mod.dependencies.forEach(depId => {
                     if (data[depId]) {
-                        links.push({
-                            source: mod.id,
-                            target: depId,
-                            exists: true
-                        });
+                        links.push({ source: mod.id, target: depId, exists: true });
                     } else if (showShadowNodes) {
-                        // Add shadow node if not exists
                         if (!shadowNodeIds.has(depId)) {
                             shadowNodeIds.add(depId);
-                            nodes.push({
+                            const shadowNode = {
                                 id: depId,
                                 filename: `mod_${depId}.js`,
                                 label: `mod_${depId}`,
-                                dependencies: [],
-                                dependents: [],
-                                exists: false,
-                                x: Math.random() * 800,
-                                y: Math.random() * 600
-                            });
+                                dependencies: [], dependents: [], exists: false,
+                                x: Math.random() * 800, y: Math.random() * 600
+                            };
+                            nodes.push(shadowNode);
+                            nodeById.set(depId, shadowNode);
                         }
-                        links.push({
-                            source: mod.id,
-                            target: depId,
-                            exists: false
-                        });
+                        links.push({ source: mod.id, target: depId, exists: false });
                     }
                 });
             });
+
+            // IMPORTANT: Replace link IDs with references to node objects
+            // This is crucial for drawing links correctly without the physics simulation.
+            links.forEach(link => {
+                link.source = nodeById.get(link.source);
+                link.target = nodeById.get(link.target);
+            });
             
-            // Load saved positions
             loadNodePositions(nodes);
             
-            // Create force simulation
-            const width = +svg.attr("width");
-            const height = +svg.attr("height");
-            
-            simulation = d3.forceSimulation(nodes)
-                .force("link", d3.forceLink(links).id(d => d.id).distance(120))
-                .force("charge", d3.forceManyBody().strength(-300))
-                .force("center", d3.forceCenter(width / 2, height / 2))
-                .force("collision", d3.forceCollide(60))
-                .alphaDecay(0.02)
-                .velocityDecay(0.6);
-            
-            // Stop simulation after 10 seconds
-            setTimeout(() => {
-                simulation.alphaTarget(0).restart();
-                setTimeout(() => {
-                    simulation.stop();
-                    console.log("Physics simulation stopped - nodes can now be freely dragged");
-                }, 2000);
-            }, 10000);
-            
-            // Create links
-            const link = g.append("g")
+            const linkElements = g.append("g")
                 .selectAll("path")
                 .data(links)
                 .enter().append("path")
                 .attr("class", d => `link ${d.exists ? '' : 'shadow'}`)
                 .attr("stroke-width", 2);
             
-            // Create nodes
-            const node = g.append("g")
+            const nodeElements = g.append("g")
                 .selectAll(".node")
                 .data(nodes)
                 .enter().append("g")
@@ -1017,102 +978,95 @@
                     .on("drag", dragged)
                     .on("end", dragended));
             
-            // Add rectangles to nodes
-            node.append("rect")
-                .attr("width", 120)
-                .attr("height", 60)
-                .attr("x", -60)
-                .attr("y", -30);
+            nodeElements.append("rect")
+                .attr("width", 120).attr("height", 60)
+                .attr("x", -60).attr("y", -30);
             
-            // Add layout saved indicator (blue dot)
-            node.filter(d => hasLayoutSaved(d.id))
+            nodeElements.filter(d => hasLayoutSaved(d.id))
                 .append("circle")
                 .attr("class", "layout-indicator")
-                .attr("cx", 50)
-                .attr("cy", -20)
-                .attr("r", 4);
+                .attr("cx", 50).attr("cy", -20).attr("r", 4);
             
-            // Add filename text
-            node.append("text")
-                .attr("class", "filename")
-                .attr("y", -8)
+            nodeElements.append("text").attr("class", "filename").attr("y", -8)
                 .text(d => d.label || `mod_${d.id}.js`);
             
-            // Add dependency count
-            node.append("text")
-                .attr("class", "deps")
-                .attr("y", 8)
+            nodeElements.append("text").attr("class", "deps").attr("y", 8)
                 .text(d => `${d.dependencies.length} deps`);
             
-            // Add used by count
-            node.append("text")
-                .attr("class", "deps")
-                .attr("y", 20)
+            nodeElements.append("text").attr("class", "deps").attr("y", 20)
                 .text(d => `${d.dependents.length} refs`);
             
-            // Add click events
-            node.on("click", function(event, d) {
+            nodeElements.on("click", function(event, d) {
                 event.stopPropagation();
-                
                 if (selectedNode === d.id) {
-                    // Deselect
                     selectedNode = null;
                     selectedNodeElement = null;
-                    node.classed("selected", false);
-                    link.classed("highlighted", false);
+                    nodeElements.classed("selected", false);
+                    linkElements.classed("highlighted", false);
                     hideNodeContextMenu();
                 } else {
-                    // Select new node
                     selectedNode = d.id;
                     selectedNodeElement = this;
-                    node.classed("selected", n => n.id === d.id);
-                    
-                    // Highlight related links
-                    link.classed("highlighted", l => l.source.id === d.id || l.target.id === d.id);
-                    
-                    // Show context menu next to selected node
+                    nodeElements.classed("selected", n => n.id === d.id);
+                    linkElements.classed("highlighted", l => l.source.id === d.id || l.target.id === d.id);
                     showNodeContextMenu(event, d, this);
                 }
             });
             
-            // node.on("contextmenu", function(event, d) {
-            //     event.preventDefault();
-            //     showNodeContextMenu(event, d);
-            // });
-            
-            // Add tooltips
-            node.on("mouseover", function(event, d) {
-                if (selectedNode === d.id) return; // Don't show tooltip for selected node
+            nodeElements.on("mouseover", function(event, d) {
+                if (selectedNode === d.id) return;
                 const tooltip = document.getElementById('tooltip');
                 tooltip.style.display = 'block';
                 tooltip.style.left = (event.pageX + 10) + 'px';
                 tooltip.style.top = (event.pageY - 10) + 'px';
                 tooltip.innerHTML = `
-                    <strong>${d.filename}</strong><br>
+                    <strong>${d.label || d.filename}</strong><br>
                     Dependencies: ${d.dependencies.join(', ') || 'None'}<br>
                     Used by: ${d.dependents.join(', ') || 'None'}${d.exists ? '' : '<br><em>Missing file</em>'}
                 `;
-            })
-            .on("mouseout", function() {
+            }).on("mouseout", () => {
                 document.getElementById('tooltip').style.display = 'none';
             });
             
-            // Update positions on simulation tick
-            simulation.on("tick", () => {
-                link.attr("d", d => {
-                    const dx = d.target.x - d.source.x;
-                    const dy = d.target.y - d.source.y;
-                    const dr = Math.sqrt(dx * dx + dy * dy);
-                    return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+            const disablePhysics = nodes.length > 20;
+
+            if (disablePhysics) {
+                console.log(`Disabling D3 physics for ${nodes.length} nodes to improve performance.`);
+                simulation = null;
+                nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
+                linkElements.attr("d", calculateLinkPath);
+            } else {
+                const width = +svg.attr("width");
+                const height = +svg.attr("height");
+                
+                // Note: d3.forceLink needs the original ID-based links array to work correctly.
+                // We will re-create it here just for the simulation.
+                const simLinks = links.map(l => ({source: l.source.id, target: l.target.id}));
+
+                simulation = d3.forceSimulation(nodes)
+                    .force("link", d3.forceLink(simLinks).id(d => d.id).distance(150))
+                    .force("charge", d3.forceManyBody().strength(-400))
+                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .force("collision", d3.forceCollide(60));
+                
+                setTimeout(() => {
+                    if (simulation) {
+                        simulation.alphaTarget(0).restart();
+                        setTimeout(() => {
+                            if (simulation) simulation.stop();
+                            console.log("Physics simulation stopped.");
+                        }, 2000);
+                    }
+                }, 10000);
+
+                simulation.on("tick", () => {
+                    linkElements.attr("d", calculateLinkPath);
+                    nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
+                    if (selectedNode && selectedNodeElement) {
+                        updateNodeContextMenuPosition();
+                    }
                 });
-                
-                node.attr("transform", d => `translate(${d.x},${d.y})`);
-                
-                // Update context menu position if a node is selected
-                if (selectedNode && selectedNodeElement) {
-                    updateNodeContextMenuPosition();
-                }
-            });
+            }
         }
         
         function updateModuleList() {
@@ -1135,11 +1089,8 @@
         
         function filterModules() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const items = document.querySelectorAll('.module-item');
-            
-            items.forEach(item => {
-                const text = item.textContent.toLowerCase();
-                item.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+            document.querySelectorAll('.module-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(searchTerm) ? 'flex' : 'none';
             });
         }
         
@@ -1148,237 +1099,137 @@
             if (!focusTerm) {
                 filteredData = {};
                 currentView = "all";
-                updateCurrentViewInfo();
-                visualizeGraph();
-                return;
-            }
-            
-            const targetModule = dependencyData[focusTerm];
-            if (!targetModule) {
-                filteredData = {};
-                currentView = "all";
-                updateCurrentViewInfo();
-                visualizeGraph();
-                return;
-            }
-            
-            currentView = `focus:${focusTerm}`;
-            
-            // Create filtered data with target module and its direct dependencies/dependents
-            filteredData = {};
-            const relatedIds = new Set([focusTerm]);
-            
-            // Add dependencies
-            targetModule.dependencies.forEach(depId => {
-                if (dependencyData[depId]) relatedIds.add(depId);
-            });
-            
-            // Add dependents
-            targetModule.dependents.forEach(depId => {
-                if (dependencyData[depId]) relatedIds.add(depId);
-            });
-            
-            relatedIds.forEach(id => {
-                if (dependencyData[id]) {
-                    filteredData[id] = { ...dependencyData[id] };
-                    // Filter dependencies to only include related modules
-                    filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId));
-                }
-            });
-            
-            // updateCurrentViewDisplay();
-            updateCurrentViewInfo();
-
-            // Auto-load layout if available
-            setTimeout(() => {
-                if (hasLayoutSaved()) {
-                    loadLayout();
-                }
-            }, 100);
-
-            visualizeGraph();
-        }
-        
-        // Dependency/Usage View Functions
-        function viewDependencies(moduleId) {
-            const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
-            currentView = `dependencies:${moduleId}`;
-            
-            filteredData = {};
-            const relatedIds = new Set();
-            
-            function addDependenciesRecursive(id, level) {
-                if (level > recursiveLevel || !dependencyData[id]) return;
-                
-                relatedIds.add(id);
-                if (dependencyData[id]) {
-                    dependencyData[id].dependencies.forEach(depId => {
-                        addDependenciesRecursive(depId, level + 1);
+            } else {
+                const targetModule = dependencyData[focusTerm];
+                if (!targetModule) {
+                    filteredData = {};
+                    currentView = "all";
+                } else {
+                    currentView = `focus:${focusTerm}`;
+                    filteredData = {};
+                    const relatedIds = new Set([focusTerm]);
+                    targetModule.dependencies.forEach(depId => { if (dependencyData[depId]) relatedIds.add(depId); });
+                    targetModule.dependents.forEach(depId => { if (dependencyData[depId]) relatedIds.add(depId); });
+                    
+                    relatedIds.forEach(id => {
+                        if (dependencyData[id]) {
+                            filteredData[id] = { ...dependencyData[id] };
+                            filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId));
+                        }
                     });
                 }
             }
-            
+            updateCurrentViewInfo();
+            visualizeGraph();
+            setTimeout(() => { if (hasLayoutSaved()) loadLayout(); }, 100);
+        }
+        
+        // Context Menu Functions and other helpers...
+        function viewDependencies(moduleId) {
+            const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
+            currentView = `dependencies:${moduleId}`;
+            filteredData = {};
+            const relatedIds = new Set();
+            function addDependenciesRecursive(id, level) {
+                if (level > recursiveLevel || !dependencyData[id]) return;
+                relatedIds.add(id);
+                if (dependencyData[id]) {
+                    dependencyData[id].dependencies.forEach(depId => addDependenciesRecursive(depId, level + 1));
+                }
+            }
             addDependenciesRecursive(moduleId, 1);
-            
             relatedIds.forEach(id => {
                 if (dependencyData[id]) {
                     filteredData[id] = { ...dependencyData[id] };
-                    // Keep only dependencies that are in the related set
-                    filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => 
-                        relatedIds.has(depId) || showShadowNodes
-                    );
+                    filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId) || showShadowNodes);
                 }
             });
-            
-            // updateCurrentViewDisplay();
             updateCurrentViewInfo();
             hideNodeContextMenu();
-            
-            // Auto-load layout if available
-            setTimeout(() => {
-                if (hasLayoutSaved()) {
-                    loadLayout();
-                }
-            }, 100);
-
             visualizeGraph();
+            setTimeout(() => { if (hasLayoutSaved()) loadLayout(); }, 100);
         }
         
         function viewUsage(moduleId) {
             const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
             currentView = `usage:${moduleId}`;
-            
             filteredData = {};
             const relatedIds = new Set();
-            
             function addUsageRecursive(id, level) {
                 if (level > recursiveLevel || !dependencyData[id]) return;
-                
                 relatedIds.add(id);
                 if (dependencyData[id]) {
-                    dependencyData[id].dependents.forEach(depId => {
-                        addUsageRecursive(depId, level + 1);
-                    });
+                    dependencyData[id].dependents.forEach(depId => addUsageRecursive(depId, level + 1));
                 }
             }
-            
             addUsageRecursive(moduleId, 1);
-            
             relatedIds.forEach(id => {
                 if (dependencyData[id]) {
                     filteredData[id] = { ...dependencyData[id] };
-                    // Filter dependencies to only show relevant connections
-                    filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => 
-                        relatedIds.has(depId)
-                    );
+                    filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId));
                 }
             });
-            
-            // updateCurrentViewDisplay();
-            
             updateCurrentViewInfo();
             hideNodeContextMenu();
-            
-            // Auto-load layout if available
-            setTimeout(() => {
-                if (hasLayoutSaved()) {
-                    loadLayout();
-                }
-            }, 100);
-
             visualizeGraph();
+            setTimeout(() => { if (hasLayoutSaved()) loadLayout(); }, 100);
         }
-        
-        // Shadow Nodes Toggle
+
         function toggleShadowNodes() {
             showShadowNodes = document.getElementById('showShadowNodes').checked;
             visualizeGraph();
         }
         
-        // Layout Management Functions
         function getLayoutKey(moduleId = null) {
-            // return `layout_${currentView}`;
             const viewKey = moduleId ? `focus:${moduleId}` : currentView;
             return `layout_${viewKey}`;
         }
         
         function hasLayoutSaved(moduleId = null) {
-            const layoutKey = getLayoutKey(moduleId);
-            return localStorage.getItem(layoutKey) !== null;
+            return localStorage.getItem(getLayoutKey(moduleId)) !== null;
         }
         
         function saveLayout() {
-            if (!simulation) return;
-            
+            if (g.selectAll('.node').empty()) return;
             const positions = {};
-            g.selectAll('.node').each(function(d) {
+            g.selectAll('.node').data().forEach(d => {
                 positions[d.id] = { x: d.x, y: d.y };
             });
-            
-            const layoutData = {
-                positions: positions,
-                view: currentView,
-                timestamp: Date.now()
-            };
-            
+            const layoutData = { positions, view: currentView, timestamp: Date.now() };
             localStorage.setItem(getLayoutKey(), JSON.stringify(layoutData));
             console.log(`Layout saved for view: ${currentView}`);
-            
-            // Update layout indicator
             updateLayoutSavedIndicator();
-            
-            // Update module list to show layout indicators
             updateModuleList();
-            
-            // Update visual indicators on nodes
-            // visualizeGraph();
         }
         
         function loadLayout() {
             const layoutKey = getLayoutKey();
             const savedLayout = localStorage.getItem(layoutKey);
-            
             if (!savedLayout) {
                 console.log(`No saved layout found for view: ${currentView}`);
                 return;
             }
-            
             const layoutData = JSON.parse(savedLayout);
-            
-            // Apply positions to current nodes
             g.selectAll('.node').each(function(d) {
                 if (layoutData.positions[d.id]) {
-                    d.x = layoutData.positions[d.id].x;
-                    d.y = layoutData.positions[d.id].y;
-                    d.fx = d.x;
-                    d.fy = d.y;
+                    d.x = d.fx = layoutData.positions[d.id].x;
+                    d.y = d.fy = layoutData.positions[d.id].y;
                 }
             });
-            
-            // Update visual positions immediately
             g.selectAll('.node').attr("transform", d => `translate(${d.x},${d.y})`);
-            
-            // Update links
-            g.selectAll(".link").attr("d", d => {
-                const dx = d.target.x - d.source.x;
-                const dy = d.target.y - d.source.y;
-                const dr = Math.sqrt(dx * dx + dy * dy);
-                return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
-            });
-            
+            g.selectAll(".link").attr("d", calculateLinkPath);
             console.log(`Layout loaded for view: ${currentView}`);
         }
         
         function loadNodePositions(nodes) {
             const layoutKey = getLayoutKey();
             const savedLayout = localStorage.getItem(layoutKey);
-            
             if (savedLayout) {
                 const layoutData = JSON.parse(savedLayout);
                 nodes.forEach(node => {
                     if (layoutData.positions[node.id]) {
-                        node.x = layoutData.positions[node.id].x;
-                        node.y = layoutData.positions[node.id].y;
+                        node.x = node.fx = layoutData.positions[node.id].x;
+                        node.y = node.fy = layoutData.positions[node.id].y;
                     }
                 });
             }
@@ -1395,179 +1246,72 @@
             }
         }
         
-        function exportLayoutJSON() {
-            const allLayouts = {};
-            
-            // Get all saved layouts from localStorage
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key.startsWith('layout_')) {
-                    allLayouts[key] = JSON.parse(localStorage.getItem(key));
-                }
-            }
-            
-            const dataStr = JSON.stringify(allLayouts, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'layouts.json';
-            link.click();
-            URL.revokeObjectURL(url);
-        }
-        
-        function importLayoutJSON() {
-            document.getElementById('layoutFileInput').click();
-        }
-        
-        // Layout file input handler
-        document.getElementById('layoutFileInput').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file && file.type === 'application/json') {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const layouts = JSON.parse(e.target.result);
-                        
-                        // Import all layouts to localStorage
-                        Object.keys(layouts).forEach(key => {
-                            localStorage.setItem(key, JSON.stringify(layouts[key]));
-                        });
-                        
-                        console.log(`Imported ${Object.keys(layouts).length} layouts`);
-                        updateLayoutSavedIndicator();
-                        updateModuleList();
-                        loadLayout(); // Load current view if available
-                    } catch (error) {
-                        alert('Error parsing layout file: ' + error.message);
-                    }
-                };
-                reader.readAsText(file);
-            }
-        });
-        
-        function updateCurrentViewDisplay() {
-            document.getElementById('currentLayoutView').textContent = currentView;
-        }
-
         function highlightModule(moduleId) {
-            // Clear previous highlights
-            document.querySelectorAll('.module-item').forEach(item => {
-                item.classList.remove('highlighted');
-            });
-            
-            // Highlight clicked module
+            document.querySelectorAll('.module-item').forEach(item => item.classList.remove('highlighted'));
             document.querySelector(`[data-id="${moduleId}"]`).classList.add('highlighted');
-            
-            // Focus on this module in the graph
             document.getElementById('focusInput').value = moduleId;
             focusModule();
         }
         
-        // Context Menu Functions
         function showNodeContextMenu(event, nodeData, nodeElement) {
-            hideNodeContextMenu(); // Hide any existing menu
-
-            // const menu = document.getElementById('contextMenu');
+            hideNodeContextMenu();
             const vscodePathInput = document.getElementById('vscodePath');
             const currentVscodePath = vscodePathInput.value || config.vscodePath;
-            
             let menuHTML = '';
-            
             if (nodeData.exists) {
                 menuHTML += `<div class="context-menu-item" onclick="openInVSCode('${nodeData.id}', '${currentVscodePath.replace(/\\/g, '\\\\')}')">Open in VSCode</div>`;
                 menuHTML += `<div class="context-menu-item" onclick="openFileContent('${nodeData.id}')">Open file content</div>`;
                 menuHTML += '<div class="context-menu-item separator"></div>';
             }
-            
             menuHTML += `<div class="context-menu-item" onclick="viewDependencies('${nodeData.id}')">View Dependencies</div>`;
             menuHTML += `<div class="context-menu-item" onclick="viewUsage('${nodeData.id}')">View Usage</div>`;
-            
             const menu = document.createElement('div');
             menu.id = 'nodeContextMenu';
             menu.className = 'node-context-menu';
             menu.innerHTML = menuHTML;
-
-            // menu.style.display = 'block';
-            // menu.style.left = event.pageX + 'px';
-            // menu.style.top = event.pageY + 'px';
-
-            // Position menu relative to the node
-            // const nodeTransform = nodeElement.getAttribute('transform');
-            // const match = nodeTransform.match(/translate\(([^,]+),([^)]+)\)/);
-            // if (match) {
-            //     const nodeX = parseFloat(match[1]);
-            //     const nodeY = parseFloat(match[2]);
-                
-            //     // Get the current zoom transform
-            //     const zoomTransform = d3.zoomTransform(svg.node());
-            //     const screenX = (nodeX * zoomTransform.k) + zoomTransform.x;
-            //     const screenY = (nodeY * zoomTransform.k) + zoomTransform.y;
-                
-            //     // Position menu to the right of the node
-            //     menu.style.left = (screenX + 70 + 180) + 'px';
-            //     menu.style.top = (screenY - 50) + 'px';
-            // }
-            
             document.body.appendChild(menu);
-
             updateNodeContextMenuPosition();
         }
 
         function updateNodeContextMenuPosition() {
             const menu = document.getElementById('nodeContextMenu');
             if (!menu || !selectedNodeElement) return;
-            
             const nodeTransform = selectedNodeElement.getAttribute('transform');
             const match = nodeTransform.match(/translate\(([^,]+),([^)]+)\)/);
             if (match) {
                 const nodeX = parseFloat(match[1]);
                 const nodeY = parseFloat(match[2]);
-                
-                // Get the current zoom transform
                 const zoomTransform = d3.zoomTransform(svg.node());
                 const screenX = (nodeX * zoomTransform.k) + zoomTransform.x;
                 const screenY = (nodeY * zoomTransform.k) + zoomTransform.y;
-                
-                // Position menu to the right of the node
-                menu.style.left = (screenX + 70 + 80) + 'px';
+                menu.style.left = (screenX + 70) + 'px';
                 menu.style.top = (screenY - 50) + 'px';
             }
         }
         
         function hideNodeContextMenu() {
             const menu = document.getElementById('nodeContextMenu');
-            if (menu) {
-                menu.remove();
-            }
+            if (menu) menu.remove();
         }
         
         function openInVSCode(nodeId, vscodePath) {
             const nodeData = (filteredData[nodeId] || dependencyData[nodeId]);
             if (!nodeData) return;
-            
             const fullPath = `${vscodePath}\\${nodeData.filename}`;
-            // Create vscode:// protocol URL
-            const vscodeUrl = `vscode://file/${fullPath.replace(/\\/g, '/')}`;
-            window.open(vscodeUrl, '_blank');
+            window.open(`vscode://file/${fullPath.replace(/\\/g, '/')}`, '_blank');
             hideNodeContextMenu();
         }
         
         function openFileContent(nodeId) {
             const nodeData = (filteredData[nodeId] || dependencyData[nodeId]);
             if (!nodeData) return;
-            
-            const fileUrl = `${config.baseUrl}/${nodeData.filename}`;
-            window.open(fileUrl, '_blank');
+            window.open(`${config.baseUrl}/${nodeData.filename}`, '_blank');
             hideNodeContextMenu();
         }
 
         // Drag functions
         function dragstarted(event, d) {
-            // Only restart simulation if it's still running
-            if (simulation && simulation.alpha() > 0) {
-                if (!event.active) simulation.alphaTarget(0.3).restart();
-            }
+            if (simulation && !event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
             d.fy = d.y;
         }
@@ -1575,106 +1319,32 @@
         function dragged(event, d) {
             d.fx = event.x;
             d.fy = event.y;
-            
-            // If simulation is stopped, manually update positions
-            if (!simulation || simulation.alpha() === 0) {
+            if (!simulation) {
                 d.x = event.x;
                 d.y = event.y;
-                
-                // Manually update the visual position
-                d3.select(event.sourceEvent.target.parentNode)
-                    .attr("transform", `translate(${d.x},${d.y})`);
-                
-                // Update connected links
-                g.selectAll(".link").attr("d", linkD => {
-                    if (linkD.source.id === d.id || linkD.target.id === d.id) {
-                        const dx = linkD.target.x - linkD.source.x;
-                        const dy = linkD.target.y - linkD.source.y;
-                        const dr = Math.sqrt(dx * dx + dy * dy);
-                        return `M${linkD.source.x},${linkD.source.y}A${dr},${dr} 0 0,1 ${linkD.target.x},${linkD.target.y}`;
-                    }
-                    return d3.select(this).attr("d");
-                });
-                
-                // Update context menu position if this is the selected node
-                if (selectedNode === d.id) {
-                    updateNodeContextMenuPosition();
-                }
+                d3.select(this).attr("transform", `translate(${d.x},${d.y})`);
+                g.selectAll(".link").attr("d", calculateLinkPath);
+                if (selectedNode === d.id) updateNodeContextMenuPosition();
             }
         }
         
         function dragended(event, d) {
-            if (simulation && simulation.alpha() > 0) {
-                if (!event.active) simulation.alphaTarget(0);
+            if (simulation && !event.active) simulation.alphaTarget(0);
+            if (!simulation) {
+                d.fx = null;
+                d.fy = null;
             }
-            // Keep the node fixed at its dragged position
-            // Don't reset fx, fy so the node stays where dragged
         }
         
         // Zoom controls
-        function zoomIn() {
-            svg.transition().call(zoom.scaleBy, 1.5);
-        }
-        
-        function zoomOut() {
-            svg.transition().call(zoom.scaleBy, 0.67);
-        }
-        
-        function resetZoom() {
-            svg.transition().call(zoom.transform, d3.zoomIdentity);
-        }
+        function zoomIn() { svg.transition().call(zoom.scaleBy, 1.5); }
+        function zoomOut() { svg.transition().call(zoom.scaleBy, 0.67); }
+        function resetZoom() { svg.transition().call(zoom.transform, d3.zoomIdentity); }
         
         // Initialize
         initVisualization();
         updateLayoutSavedIndicator();
         loadAliases();
-        
-        // Export functionality
-        function exportData() {
-            let exportData;
-            
-            // If we loaded from JSON, export in the same format
-            if (graphData.nodes.length > 0) {
-                exportData = {
-                    nodes: Object.values(dependencyData).map(mod => ({
-                        id: parseInt(mod.id),
-                        label: mod.label || `mod_${mod.id}`,
-                        file: mod.filename
-                    })),
-                    links: []
-                };
-                
-                // Rebuild links from dependencies
-                Object.values(dependencyData).forEach(mod => {
-                    mod.dependencies.forEach(depId => {
-                        exportData.links.push({
-                            source: parseInt(mod.id),
-                            target: parseInt(depId)
-                        });
-                    });
-                });
-            } else {
-                // Export in original internal format
-                exportData = dependencyData;
-            }
-            
-            const dataStr = JSON.stringify(exportData, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'dependency-graph.json';
-            link.click();
-            URL.revokeObjectURL(url);
-        }
-        
-        // Add export button (you can add this to the HTML if needed)
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 's') {
-                e.preventDefault();
-                exportData();
-            }
-        });
     </script>
 </body>
 </html>

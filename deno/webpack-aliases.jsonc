@@ -5,6 +5,7 @@
     "7": "makeCssList", // const makeCssList = require('css-loader/lib/css-base'); const cssExports = makeCssList(false); cssExports.push([ module_id, ".css data", 'media_query', source_map]) 
     // "3":"ReactDOM",
     // "245":"classnames",
+    "172": "slate_editor", // slate-react/src/components/editor
     "659": "object_assign", // _assign = require('object-assign');
     "794":"React_production" // React 16.14.0
 }
