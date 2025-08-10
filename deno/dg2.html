@@ -7,35 +7,65 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <style>
         :root {
-            /* Color Scheme */
-            --bg-primary: #0a0a0a;
-            --bg-secondary: #1a1a1a;
-            --bg-tertiary: #0f0f0f;
-            --border-primary: #333;
-            --border-secondary: #444;
+            /* Modern Dark Color Scheme */
+            --bg-primary: hsl(240, 20%, 4%);
+            --bg-secondary: hsl(240, 20%, 8%);
+            --bg-tertiary: hsl(240, 20%, 10%);
+            --bg-elevated: hsl(240, 25%, 12%);
+            --bg-surface: hsl(240, 10%, 15%);
+            
+            --border-primary: hsl(240, 25%, 16%);
+            --border-secondary: hsl(240, 25%, 20%);
+            --border-tertiary: hsl(240, 25%, 25%);
+            
             --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-muted: #888;
-            --accent-primary: #00d4ff;
-            --accent-secondary: #0099cc;
-            --accent-danger: #ff4757;
-            --accent-warning: #eab308;
+            --text-secondary: hsl(240, 25%, 70%);
+            --text-muted: hsl(240, 10%, 45%);
+            --text-disabled: #525252;
+            
+            /* More refined accent colors */
+            --accent-primary: hsl(240, 81%, 60%);
+            --accent-primary-hover: hsl(240, 73%, 53%);
+            --accent-primary-active: hsl(245, 66%, 48%);
+            --accent-secondary: hsl(255, 84%, 67%);
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-error: #ef4444;
+            --accent-info: #06b6d4;
+            
+            /* Subtle accent variations */
+            --accent-primary-subtle: rgba(59, 130, 246, 0.1);
+            --accent-primary-muted: rgba(59, 130, 246, 0.2);
             
             /* Layout */
             --activity-bar-width: 48px;
-            --sidebar-width: 300px;
+            --sidebar-width: 280px;
             --panel-padding: 20px;
-            --border-radius: 8px;
-            --transition: all 0.3s ease;
+            --border-radius-sm: 4px;
+            --border-radius: 6px;
+            --border-radius-lg: 8px;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             
             /* Typography */
-            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+            --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            --font-size-xs: 11px;
+            --font-size-sm: 12px;
             --font-size-base: 14px;
-            --font-size-small: 12px;
-            --font-size-large: 18px;
+            --font-size-lg: 16px;
+            --font-size-xl: 18px;
+            --font-size-2xl: 20px;
             --font-weight-normal: 400;
             --font-weight-medium: 500;
-            --font-weight-bold: 600;
+            --font-weight-semibold: 600;
+            --font-weight-bold: 700;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
         }
         
         * {
@@ -48,10 +78,675 @@
             padding: 0;
             background: var(--bg-primary);
             color: var(--text-primary);
+            font-size: var(--font-size-base);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* Demo Layout */
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .demo-header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        
+        .demo-title {
+            font-size: 32px;
+            font-weight: var(--font-weight-bold);
+            margin: 0 0 8px 0;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .demo-subtitle {
+            color: var(--text-secondary);
+            font-size: var(--font-size-lg);
+            margin: 0;
+        }
+        
+        .demo-section {
+            margin-bottom: 48px;
+        }
+        
+        .section-title {
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-semibold);
+            margin: 0 0 24px 0;
+            color: var(--text-primary);
+        }
+        
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .component-showcase {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--border-radius-lg);
+            padding: 24px;
+        }
+        
+        .component-title {
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            margin: 0 0 16px 0;
+            color: var(--text-primary);
+        }
+        
+        .component-demo {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: var(--border-radius);
+            font-family: inherit;
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+            outline: none;
+            position: relative;
             overflow: hidden;
+        }
+        
+        .btn:focus-visible {
+            box-shadow: 0 0 0 2px var(--accent-primary-subtle), 0 0 0 4px var(--accent-primary);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* Button Variants */
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-primary:active {
+            background: var(--accent-primary-active);
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-secondary);
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--bg-surface);
+            border-color: var(--border-tertiary);
+        }
+        
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+        
+        .btn-ghost:hover:not(:disabled) {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .btn-danger {
+            background: var(--accent-error);
+            color: white;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        /* Button Sizes */
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: var(--font-size-xs);
+        }
+        
+        .btn-lg {
+            padding: 12px 24px;
             font-size: var(--font-size-base);
         }
         
+        /* Form Elements */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .form-label {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            color: var(--text-primary);
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--border-radius);
+            color: var(--text-primary);
+            font-size: var(--font-size-sm);
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-primary-subtle);
+        }
+        
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-select {
+            cursor: pointer;
+        }
+        
+        /* Checkbox */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .checkbox {
+            position: relative;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .checkbox input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .checkbox-mark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 16px;
+            height: 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--border-radius-sm);
+            transition: var(--transition);
+        }
+        
+        .checkbox input[type="checkbox"]:checked ~ .checkbox-mark {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+        
+        .checkbox input[type="checkbox"]:focus ~ .checkbox-mark {
+            box-shadow: 0 0 0 3px var(--accent-primary-subtle);
+        }
+        
+        .checkbox-mark::after {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 2px;
+            width: 4px;
+            height: 8px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            opacity: 0;
+            transition: var(--transition);
+        }
+        
+        .checkbox input[type="checkbox"]:checked ~ .checkbox-mark::after {
+            opacity: 1;
+        }
+        
+        /* Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        
+        .switch input[type="checkbox"] {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-secondary);
+            transition: var(--transition);
+            border-radius: 10px;
+        }
+        
+        .switch-slider::before {
+            position: absolute;
+            content: '';
+            height: 16px;
+            width: 16px;
+            left: 1px;
+            top: 1px;
+            background: var(--text-muted);
+            transition: var(--transition);
+            border-radius: 50%;
+        }
+        
+        .switch input:checked ~ .switch-slider {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+        
+        .switch input:checked ~ .switch-slider::before {
+            transform: translateX(20px);
+            background: white;
+        }
+        
+        .switch input:focus ~ .switch-slider {
+            box-shadow: 0 0 0 3px var(--accent-primary-subtle);
+        }
+        
+        /* Radio Button */
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .radio {
+            position: relative;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .radio input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .radio-mark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 16px;
+            height: 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+        
+        .radio input[type="radio"]:checked ~ .radio-mark {
+            border-color: var(--accent-primary);
+        }
+        
+        .radio input[type="radio"]:focus ~ .radio-mark {
+            box-shadow: 0 0 0 3px var(--accent-primary-subtle);
+        }
+        
+        .radio-mark::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            transition: var(--transition);
+        }
+        
+        .radio input[type="radio"]:checked ~ .radio-mark::after {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        
+        /* List Items */
+        .list {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+        
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-primary);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+        
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .list-item:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .list-item.active {
+            background: var(--accent-primary-subtle);
+            border-left: 3px solid var(--accent-primary);
+        }
+        
+        .list-item-icon {
+            width: 16px;
+            height: 16px;
+            color: var(--text-muted);
+        }
+        
+        .list-item-content {
+            flex: 1;
+        }
+        
+        .list-item-title {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            margin: 0;
+        }
+        
+        .list-item-subtitle {
+            font-size: var(--font-size-xs);
+            color: var(--text-muted);
+            margin: 2px 0 0 0;
+        }
+        
+        /* Cards */
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--border-radius-lg);
+            overflow: hidden;
+            transition: var(--transition);
+        }
+        
+        .card:hover {
+            border-color: var(--border-secondary);
+            box-shadow: var(--shadow);
+        }
+        
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-primary);
+            background: var(--bg-tertiary);
+        }
+        
+        .card-title {
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            margin: 0;
+        }
+        
+        .card-content {
+            padding: 20px;
+        }
+        
+        .card-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-primary);
+            background: var(--bg-tertiary);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
+            border-radius: 12px;
+        }
+        
+        .badge-primary {
+            background: var(--accent-primary-muted);
+            color: var(--accent-primary);
+        }
+        
+        .badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-success);
+        }
+        
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-warning);
+        }
+        
+        .badge-error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-error);
+        }
+        
+        /* Progress Bar */
+        .progress {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-surface);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+        
+        /* Tabs */
+        .tabs {
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .tab-list {
+            display: flex;
+            gap: 0;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        
+        .tab-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+        }
+        
+        .tab-item:hover {
+            color: var(--text-secondary);
+        }
+        
+        .tab-item.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+        
+        /* Dropdown */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 200px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: var(--transition);
+        }
+        
+        .dropdown.active .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .dropdown-item {
+            display: block;
+            padding: 8px 12px;
+            font-size: var(--font-size-sm);
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: var(--transition);
+            border-radius: var(--border-radius-sm);
+            margin: 4px;
+        }
+        
+        .dropdown-item:hover {
+            background: var(--accent-primary-subtle);
+            color: var(--accent-primary);
+        }
+        
+        .dropdown-divider {
+            height: 1px;
+            background: var(--border-primary);
+            margin: 4px 0;
+        }
+        
+        /* Utility Classes */
+        .flex {
+            display: flex;
+        }
+        
+        .flex-col {
+            flex-direction: column;
+        }
+        
+        .items-center {
+            align-items: center;
+        }
+        
+        .justify-between {
+            justify-content: space-between;
+        }
+        
+        .gap-2 {
+            gap: 8px;
+        }
+        
+        .gap-4 {
+            gap: 16px;
+        }
+        
+        .text-xs {
+            font-size: var(--font-size-xs);
+        }
+        
+        .text-sm {
+            font-size: var(--font-size-sm);
+        }
+        
+        .text-muted {
+            color: var(--text-muted);
+        }
+        
+        .font-medium {
+            font-weight: var(--font-weight-medium);
+        }
+        
+        .font-semibold {
+            font-weight: var(--font-weight-semibold);
+        }
+        
+        /* Icons (simple SVG placeholders) */
+        .icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .component-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .demo-container {
+                padding: 24px 16px;
+            }
+        }
+        
+
+        /* ------------------------------------------------------ */
+
         /* Main Layout */
         .workbench {
             display: flex;
@@ -103,6 +798,30 @@
             height: 16px;
             background: var(--accent-primary);
         }
+
+        .activity-separator {
+            height: 2px;
+            padding: 0px 8px;
+            border-bottom: 2px solid var(--text-muted);
+        }
+
+        .activity-logo-header {
+            width: 32px;
+            height: 32px;   
+        }
+
+        .activity-logo {
+            width: 32px;
+            height: 32px;
+            opacity: 0.5;
+            transition: opacity 0.3s ease;
+            filter: grayscale(0.4);
+        }
+
+        .activity-logo:hover {
+            opacity: 1;
+            filter: grayscale(0);
+        }
         
         /* Sidebar */
         .sidebar {
@@ -112,6 +831,7 @@
             display: flex;
             flex-direction: column;
             transition: var(--transition);
+            color: var(--text-secondary);
         }
         
         .sidebar.collapsed {
@@ -125,9 +845,17 @@
             align-items: center;
             padding: 0 16px;
             border-bottom: 1px solid var(--border-primary);
-            font-weight: var(--font-weight-bold);
-            font-size: var(--font-size-large);
-            color: var(--accent-primary);
+            /* font-weight: var(--font-weight-bold); */
+            font-size: var(--font-size-xs);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+
+            cursor: default;
+            font-weight: 400;
+            margin: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
         }
         
         .sidebar-content {
@@ -237,46 +965,7 @@
         .upload-area.hidden {
             display: none;
         }
-        
-        /* Buttons */
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: var(--font-weight-medium);
-            font-size: var(--font-size-small);
-            transition: var(--transition);
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
-        }
-        
-        .btn-secondary {
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-primary);
-        }
-        
-        .btn-secondary:hover {
-            background: var(--border-primary);
-        }
-        
-        .btn-small {
-            padding: 4px 8px;
-            font-size: 11px;
-        }
-        
+
         /* Form Elements */
         .form-group {
             display: flex;
@@ -622,7 +1311,7 @@
         .zoom-btn {
             width: 36px;
             height: 36px;
-            background: rgba(0, 0, 0, 0.8);
+            background: hsla(240, 20%, 0%, 0.8);
             border: 1px solid var(--border-primary);
             border-radius: 6px;
             color: var(--text-primary);
@@ -661,7 +1350,7 @@
         /* Context Menu */
         .context-menu {
             position: absolute;
-            background: rgba(20, 20, 20, 0.95);
+            background: hsla(240, 10%, 8%, 0.95);
             border: 1px solid var(--border-secondary);
             border-radius: var(--border-radius);
             padding: 4px 0;
@@ -708,11 +1397,54 @@
     <div class="workbench">
         <!-- Activity Bar -->
         <div class="activity-bar">
-            <div class="activity-item" data-panel="filter" title="Filters">🔍</div>
-            <div class="activity-item" data-panel="stats" title="Statistics">📊</div>
-            <div class="activity-item" data-panel="layout" title="Layout Control">🎯</div>
-            <div class="activity-item" data-panel="advanced" title="Advanced Options">⚙️</div>
-            <div class="activity-item" data-panel="modules" title="Modules">📦</div>
+            <div class="activity-logo-header" title="UwP">
+                <svg class="activity-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" opacity="0.5">
+                    <defs>
+                        <radialGradient xlink:href="#a" id="b" cx="65.9" cy="56.9" r="24" fx="65.9" fy="56.9" gradientTransform="matrix(1 -1 1 0 -9.3 91)" gradientUnits="userSpaceOnUse"/>
+                        <linearGradient id="a">
+                            <stop offset="0" stop-color="#91d7e3"/>
+                            <stop offset="1" stop-color="#8aadf4"/>
+                        </linearGradient>
+                    </defs>
+                    <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
+                        <path stroke="#91d7e3" d="M27 60.1 9 70.5M48 24V3"/>
+                        <path stroke="#8aadf4" stroke-dashoffset="60" d="M69 60 48 72 27 60V36l21-12 21 12z"/>
+                        <path stroke="#91d7e3" d="M48 93 9 70.5v-45L48 3l39 22.5m-78 0L48 48m39-22.5L48 48m0 0v45"/>
+                    </g>
+                    <g>
+                        <path fill="#11406b" d="m48 48 39-22.5v45L48 93Z"/>
+                        <path fill="url(#b)" d="M68.8 36 48 48v24l21-12V36z"/>
+                        <path stroke="#8aadf4" stroke-width="6" d="M68.8 60 87 70.5"/>
+                        <path fill="none" stroke="#8aadf4" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" d="M87 25.5v45L48 93"/>
+                    </g>
+
+                    <path fill="none" stroke="#09c" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" d="M9 25.5v45L48 93V48" style="
+                        stroke-dasharray: 135px 138px;
+                        stroke-dashoffset: 273px;
+                        /* 137px */
+                    "></path>
+                    <path fill="none" stroke="#09c" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" d="M9 25.5 27 36l21-12 21 12 18-10.5M48 93V48l21-12v24L48 72" style="
+                        stroke-dasharray: 118px 118px;
+                        stroke-dashoffset: 237px; /* 118px; */
+                    "/>
+                </svg>
+            </div>
+            <div class="activity-separator"></div>
+            <div class="activity-item" data-panel="filter" title="Filters">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m17 17l4 4M3 11a8 8 0 1 0 16 0a8 8 0 0 0-16 0"/></svg>
+            </div>
+            <div class="activity-item" data-panel="stats" title="Statistics">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"><path stroke-linejoin="round" d="M4 6v6s0 3 7 3s7-3 7-3V6"/><path stroke-linejoin="round" d="M11 3c7 0 7 3 7 3s0 3-7 3s-7-3-7-3s0-3 7-3m0 18c-7 0-7-3-7-3v-6"/><path d="M15 21v-2m3 2v-4m3 4v-6"/></g></svg>
+            </div>
+            <div class="activity-item" data-panel="layout" title="Layout Control">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.5" d="M20.4 3H3.6a.6.6 0 0 0-.6.6v16.8a.6.6 0 0 0 .6.6h16.8a.6.6 0 0 0 .6-.6V3.6a.6.6 0 0 0-.6-.6Zm-6.15 6.75V21M21 9.75H3"/></svg>
+            </div>
+            <div class="activity-item" data-panel="advanced" title="Advanced Options">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m10.05 10.607l-7.07 7.07a2 2 0 0 0 0 2.83v0a2 2 0 0 0 2.828 0l7.07-7.072m-2.828-2.828c-.844-2.153-.679-4.978 1.06-6.718s4.95-2.121 6.718-1.06l-3.04 3.04l-.283 3.111l3.111-.282l3.04-3.041c1.062 1.768.68 4.978-1.06 6.717c-1.74 1.74-4.564 1.905-6.717 1.061"/></svg>
+            </div>
+            <div class="activity-item" data-panel="modules" title="Modules">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 14v4.4a.6.6 0 0 0 .6.6H10m9-5v4.4a.6.6 0 0 1-.6.6H14m0-14h4.4a.6.6 0 0 1 .6.6V10M4 10V5.6a.6.6 0 0 1 .6-.6H10m4 14v1a2 2 0 1 1-4 0v-1m-6-9h1a2 2 0 1 1 0 4H4m15-4h1a2 2 0 1 1 0 4h-1m-5-9V4a2 2 0 1 0-4 0v1"/></svg>
+            </div>
         </div>
         
         <!-- Sidebar -->
@@ -729,9 +1461,15 @@
         <div class="main-content" id="main-content">
             <svg id="visualization"></svg>
             <div class="zoom-controls">
-                <button class="zoom-btn" onclick="zoomIn()">+</button>
-                <button class="zoom-btn" onclick="zoomOut()">−</button>
-                <button class="zoom-btn" onclick="resetZoom()">⌂</button>
+                <button class="zoom-btn" onclick="zoomIn()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 11h3m3 0h-3m0 0V8m0 3v3m6 3l4 4M3 11a8 8 0 1 0 16 0a8 8 0 0 0-16 0"/></svg>
+                </button>
+                <button class="zoom-btn" onclick="zoomOut()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m17 17l4 4M3 11a8 8 0 1 0 16 0a8 8 0 0 0-16 0m5 0h6"/></svg>
+                </button>
+                <button class="zoom-btn" onclick="resetZoom()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M6 3H3v3m15-3h3v3M6 21H3v-3m15 3h3v-3m-8.485-.309l4-2.4a1 1 0 0 0 .485-.857v-3.868a1 1 0 0 0-.485-.857l-4-2.4a1 1 0 0 0-1.03 0l-4 2.4a1 1 0 0 0-.485.857v3.868a1 1 0 0 0 .486.857l4 2.4a1 1 0 0 0 1.028 0"/><path d="M7.5 10.5L12 13m0 0s3.764-2.05 4.5-2.5M12 13v4.5"/></g></svg>
+                </button>
                 <!-- <button id="freezeBtn" class="zoom-btn" onclick="toggleSimulationFreeze()">❄️</button> -->
             </div>
         </div>
@@ -751,19 +1489,51 @@
     <!-- Panel Templates -->
     <template id="panel-splash">
         <div class="splash-screen">
-            <svg class="splash-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <svg class="splash-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" opacity="0.5">
+                <defs>
+                    <radialGradient xlink:href="#a" id="b" cx="65.9" cy="56.9" r="24" fx="65.9" fy="56.9" gradientTransform="matrix(1 -1 1 0 -9.3 91)" gradientUnits="userSpaceOnUse"/>
+                    <linearGradient id="a">
+                        <stop offset="0" stop-color="#91d7e3"/>
+                        <stop offset="1" stop-color="#8aadf4"/>
+                    </linearGradient>
+                </defs>
                 <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
-                    <path stroke="var(--accent-primary)" d="m27 60.12l-18 10.38 M68.82 60l18.18 10.5 M48 24V3"/>
-                    <path stroke="var(--accent-secondary)" d="M69 60L48 72l-21-12V36l21-12l21 12z"/>
-                    <path stroke="var(--accent-primary)" d="M87 70.5L48 93L9 70.5v-45L48 3l39 22.5z m-78-45L48 48m39-22.5L48 48m0 0v45"/>
+                    <path stroke="#91d7e3" d="M27 60.1 9 70.5M48 24V3"/>
+                    <path stroke="#8aadf4" stroke-dashoffset="60" d="M69 60 48 72 27 60V36l21-12 21 12z"/>
+                    <path stroke="#91d7e3" d="M48 93 9 70.5v-45L48 3l39 22.5m-78 0L48 48m39-22.5L48 48m0 0v45"/>
                 </g>
+                <g>
+                    <path fill="#11406b" d="m48 48 39-22.5v45L48 93Z"/>
+                    <path fill="url(#b)" d="M68.8 36 48 48v24l21-12V36z"/>
+                    <path stroke="#8aadf4" stroke-width="6" d="M68.8 60 87 70.5"/>
+                    <path fill="none" stroke="#8aadf4" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" d="M87 25.5v45L48 93"/>
+                </g>
+
+                <path fill="none" stroke="#09c" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" d="M9 25.5v45L48 93V48" style="
+                    stroke-dasharray: 135px 138px;
+                    stroke-dashoffset: 273px;
+                    /* 137px */
+                "></path>
+                <path fill="none" stroke="#09c" stroke-linecap="round" stroke-linejoin="round" stroke-width="6" d="M9 25.5 27 36l21-12 21 12 18-10.5M48 93V48l21-12v24L48 72" style="
+                    stroke-dasharray: 118px 118px;
+                    stroke-dashoffset: 237px; /* 118px; */
+                "/>
+                
+
+                
             </svg>
             <div class="splash-content">
-                <h2 style="margin: 0 0 8px 0; color: var(--text-primary);">Dependency Analyzer</h2>
+                <h2 style="margin: 0 0 8px 0; color: var(--text-primary);">UnWebPack</h2>
                 <p style="margin: 0 0 16px 0;">Load a `dependency-graph.json` or drop a folder to begin.</p>
                 <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button class="btn btn-primary" onclick="document.getElementById('jsonInput').click()">📄 Load JSON</button>
-                    <button class="btn btn-primary" onclick="document.getElementById('folderInput').click()">📁 Browse Folder</button>
+                    <button class="btn btn-primary" onclick="document.getElementById('jsonInput').click()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M21 9v6M3 15V9m9 12v-6m0-12v6m0 6L3 9l9-6l9 6z"/><path d="m12 21l-9-6l9-6l9 6z"/></g></svg>
+                        <span>Load JSON</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('folderInput').click()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2 11V4.6a.6.6 0 0 1 .6-.6h6.178a.6.6 0 0 1 .39.144l3.164 2.712a.6.6 0 0 0 .39.144H21.4a.6.6 0 0 1 .6.6V11M2 11v8.4a.6.6 0 0 0 .6.6h18.8a.6.6 0 0 0 .6-.6V11M2 11h20"/></svg>
+                        <span>Browse Folder</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -802,13 +1572,22 @@
 
     <template id="panel-layout">
         <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
-            <button class="btn btn-secondary" onclick="saveLayout()">💾 Save Layout</button>
-            <button class="btn btn-secondary" onclick="loadLayout()">📂 Load Layout</button>
-            <button class="btn btn-secondary" onclick="deleteLayout()">❌ Delete Layout</button>
+            <button class="btn btn-secondary" onclick="saveLayout()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 19V5a2 2 0 0 1 2-2h11.172a2 2 0 0 1 1.414.586l2.828 2.828A2 2 0 0 1 21 7.828V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M8.6 9h6.8a.6.6 0 0 0 .6-.6V3.6a.6.6 0 0 0-.6-.6H8.6a.6.6 0 0 0-.6.6v4.8a.6.6 0 0 0 .6.6ZM6 13.6V21h12v-7.4a.6.6 0 0 0-.6-.6H6.6a.6.6 0 0 0-.6.6Z"/></g></svg>
+                <span>Save Layout</span>
+            </button>
+            <button class="btn btn-secondary" onclick="loadLayout()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 13v9m0 0l3.5-3.5M12 22l-3.5-3.5m11.5-.893c1.494-.585 3-1.918 3-4.607c0-4-3.333-5-5-5c0-2 0-6-6-6S6 6 6 8c-1.667 0-5 1-5 5c0 2.689 1.506 4.022 3 4.607"/></svg>
+                <span>Load Layout</span>
+            </button>
+            <button class="btn btn-secondary" onclick="deleteLayout()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M2.87 21.121L4.993 19m2.121-2.121L4.993 19m0 0L2.87 16.879M4.992 19l2.121 2.121M7 2h9.5L21 6.5V19"/><path d="M11 22h5.5a1.5 1.5 0 0 0 1.5-1.5V8.749a.6.6 0 0 0-.176-.425l-3.148-3.148A.6.6 0 0 0 14.25 5H4.5A1.5 1.5 0 0 0 3 6.5V13"/><path d="M14 5v3.4a.6.6 0 0 0 .6.6H18"/></g></svg>
+                <span>Delete Layout</span>
+            </button>
         </div>
         <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
-            <button class="btn btn-secondary btn-small" onclick="exportLayoutJSON()">Export JSON</button>
-            <button class="btn btn-secondary btn-small" onclick="importLayoutJSON()">Import JSON</button>
+            <!-- <button class="btn btn-secondary btn-small" onclick="exportLayoutJSON()">Export JSON</button>
+            <button class="btn btn-secondary btn-small" onclick="importLayoutJSON()">Import JSON</button> -->
         </div>
         <div style="font-size: 11px; color: var(--text-muted);">
             Layout saved: <span id="layoutSavedIndicator" style="color: var(--accent-warning);">none</span>
@@ -816,11 +1595,12 @@
     </template>
 
     <template id="panel-advanced">
-        <div class="form-group">
-            <div class="form-checkbox">
+        <div class="checkbox-group">
+            <div class="checkbox">
                 <input type="checkbox" id="showShadowNodes" onchange="toggleShadowNodes()">
-                <label>Show missing dependencies</label>
+                <span class="checkbox-mark"></span>
             </div>
+            <label for="showShadowNodes">Show missing dependencies</label>
         </div>
         <div class="form-group">
             <label class="form-label">Recursive Level</label>
@@ -835,6 +1615,14 @@
     </template>
 
     <template id="panel-modules">
+        <select class="form-select btn-small" id="sortOrderSelect" onchange="setSortOrder(this.value)">
+            <option value="id" selected="">Sort by ID</option>
+            <option value="label">Sort by Label</option>
+            <option value="deps">Sort by Deps</option>
+            <option value="refs">Sort by Refs</option>
+            <option value="hasLayout">Layout Saved</option>
+            <option value="noLayout">No Layout</option>
+        </select>
         <div class="module-list" id="moduleList"></div>
     </template>
 
@@ -929,27 +1717,9 @@
                         });
                     }
                     if (ui.activePanel === 'layout') {
-                        const indicator = document.getElementById('layoutSavedIndicator');
-                        indicator.textContent = ui.layoutSaved ? 'yes' : 'none';
-                        indicator.style.color = ui.layoutSaved ? 'var(--accent-primary)' : 'var(--text-muted)';
+                        updateLayoutDetails();
                     }
                     if (ui.activePanel === 'modules') {
-                        // sorting
-                        const header = document.createElement('div');
-                        header.className = 'panel-header-actions';
-                        header.innerHTML = `
-                            <select class="form-select btn-small" id="sortOrderSelect" onchange="setSortOrder(this.value)">
-                                <option value="id" ${ui.moduleSortOrder === 'id' ? 'selected' : ''}>Sort by ID</option>
-                                <option value="label" ${ui.moduleSortOrder === 'label' ? 'selected' : ''}>Sort by Label</option>
-                                <option value="deps" ${ui.moduleSortOrder === 'deps' ? 'selected' : ''}>Sort by Deps</option>
-                                <option value="refs" ${ui.moduleSortOrder === 'refs' ? 'selected' : ''}>Sort by Refs</option>
-                                <option value="hasLayout" ${ui.moduleSortOrder === 'hasLayout' ? 'selected' : ''}>Layout Saved</option>
-                                <option value="noLayout" ${ui.moduleSortOrder === 'noLayout' ? 'selected' : ''}>No Layout</option>
-                            </select>
-                        `;
-                        const titleEl = document.getElementById('sidebar-title');
-                        titleEl.parentNode.appendChild(header);
-
                         updateModuleList();
                     }
                     if (ui.activePanel === 'filter') {
@@ -1265,6 +2035,7 @@
                 loadLayout();
             } else {
                 calculateNodePositions(nodes);
+                store.update(s => ({...s, ui: {...s.ui, layoutSaved: false}}));
             }
 
             nodeElements.on("click", function(event, d) {
@@ -1458,6 +2229,16 @@
             */
         }
         
+        function updateLayoutDetails() {
+            const state = store.get();
+            
+            const indicator = document.getElementById('layoutSavedIndicator');
+            if (indicator) {
+                indicator.textContent = state.ui.layoutSaved ? 'yes' : 'none';
+                indicator.style.color = state.ui.layoutSaved ? 'var(--accent-primary)' : 'var(--text-muted)';
+            }
+        }
+
         function updateModuleList() {
             const state = store.get();
             if (state.ui.activePanel !== 'modules' || !state.ui.isDataLoaded) return;
@@ -1559,6 +2340,7 @@
             store.update(s => ({ ...s, filteredData: newFilteredData }));
             visualizeGraph();
             updateStats();
+            updateLayoutDetails();
             // setTimeout(() => { if (!hash.includes('chain') && hasLayoutSaved()) loadLayout(); }, 100);
         }
 
@@ -1609,7 +2391,7 @@
         }
 
         function loadLayout() {
-            const { currentView } = store.get().ui;
+            const { currentView, hasLayoutSaved } = store.get().ui;
             const savedLayout = localStorage.getItem(`layout_${currentView}`);
             if (!savedLayout) return;
             const layoutData = JSON.parse(savedLayout);
@@ -1621,6 +2403,7 @@
             });
             g.selectAll('.node').attr("transform", d => `translate(${d.x},${d.y})`);
             g.selectAll(".link-group").call(updateLinkAndArrow);
+            store.update(s => ({...s, ui: {...s.ui, layoutSaved: true}}));
         }
 
         function deleteLayout() {
@@ -1632,6 +2415,10 @@
                 ...s,
                 ui: { ...s.ui, layoutSaved: false }
             }));
+        }
+
+        function toggleShadowNodes() {
+
         }
 
         function loadNodePositions(nodes) {

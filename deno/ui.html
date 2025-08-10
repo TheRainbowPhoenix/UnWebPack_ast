@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Dark UI Components</title>
+    <style>
+        :root {
+            /* Modern Dark Color Scheme */
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #141414;
+            --bg-tertiary: #1a1a1a;
+            --bg-elevated: #1e1e1e;
+            --bg-surface: #262626;
+            
+            --border-primary: #2a2a2a;
+            --border-secondary: #333333;
+            --border-tertiary: #404040;
+            
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --text-muted: #737373;
+            --text-disabled: #525252;
+            
+            /* More refined accent colors */
+            --accent-primary: #3b82f6;
+            --accent-primary-hover: #2563eb;
+            --accent-primary-active: #1d4ed8;
+            --accent-secondary: #6366f1;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-error: #ef4444;
+            --accent-info: #06b6d4;
+            
+            /* Subtle accent variations */
+            --accent-primary-subtle: rgba(59, 130, 246, 0.1);
+            --accent-primary-muted: rgba(59, 130, 246, 0.2);
+            
+            /* Layout */
+            --activity-bar-width: 48px;
+            --sidebar-width: 280px;
+            --panel-padding: 20px;
+            --border-radius-sm: 4px;
+            --border-radius: 6px;
+            --border-radius-lg: 8px;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            
+            /* Typography */
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+            --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            --font-size-xs: 11px;
+            --font-size-sm: 12px;
+            --font-size-base: 14px;
+            --font-size-lg: 16px;
+            --font-size-xl: 18px;
+            --font-size-2xl: 20px;
+            --font-weight-normal: 400;
+            --font-weight-medium: 500;
+            --font-weight-semibold: 600;
+            --font-weight-bold: 700;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--font-family);
+            margin: 0;
+            padding: 0;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: var(--font-size-base);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* Demo Layout */
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .demo-header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        
+        .demo-title {
+            font-size: 32px;
+            font-weight: var(--font-weight-bold);
+            margin: 0 0 8px 0;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .demo-subtitle {
+            color: var(--text-secondary);
+            font-size: var(--font-size-lg);
+            margin: 0;
+        }
+        
+        .demo-section {
+            margin-bottom: 48px;
+        }
+        
+        .section-title {
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-semibold);
+            margin: 0 0 24px 0;
+            color: var(--text-primary);
+        }
+        
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .component-showcase {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--border-radius-lg);
+            padding: 24px;
+        }
+        
+        .component-title {
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            margin: 0 0 16px 0;
+            color: var(--text-primary);
+        }
+        
+        .component-demo {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: var(--border-radius);
+            font-family: inherit;
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+            outline: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn:focus-visible {
+            box-shadow: 0 0 0 2px var(--accent-primary-subtle), 0 0 0 4px var(--accent-primary);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* Button Variants */
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-primary:active {
+            background: var(--accent-primary-active);
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-secondary);
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--bg-surface);
+            border-color: var(--border-tertiary);
+        }
+        
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+        
+        .btn-ghost:hover:not(:disabled) {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .btn-danger {
+            background: var(--accent-error);
+            color: white;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        /* Button Sizes */
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: var(--font-size-xs);
+        }
+        
+        .btn-lg {
+            padding: 12px 24px;
+            font-size: var(--font-size-base);
+        }
+        
+        /* Form Elements */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .form-label {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            color: var(--text-primary);
+        }
+        
+        .form-input, .form-select, .form-textarea {
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--border-radius);
+            color: var(--text-primary);
+            font-size: var(--font-size-sm);
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-primary-subtle);
+        }
+        
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-select {
+            cursor: pointer;
+        }
+        
+        /* Checkbox */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .checkbox {
+            position: relative;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .checkbox input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .checkbox-mark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 16px;
+            height: 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--border-radius-sm);
+            transition: var(--transition);
+        }
+        
+        .checkbox input[type="checkbox"]:checked ~ .checkbox-mark {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+        
+        .checkbox input[type="checkbox"]:focus ~ .checkbox-mark {
+            box-shadow: 0 0 0 3px var(--accent-primary-subtle);
+        }
+        
+        .checkbox-mark::after {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 2px;
+            width: 4px;
+            height: 8px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            opacity: 0;
+            transition: var(--transition);
+        }
+        
+        .checkbox input[type="checkbox"]:checked ~ .checkbox-mark::after {
+            opacity: 1;
+        }
+        
+        /* Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        
+        .switch input[type="checkbox"] {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-secondary);
+            transition: var(--transition);
+            border-radius: 10px;
+        }
+        
+        .switch-slider::before {
+            position: absolute;
+            content: '';
+            height: 16px;
+            width: 16px;
+            left: 1px;
+            top: 1px;
+            background: var(--text-muted);
+            transition: var(--transition);
+            border-radius: 50%;
+        }
+        
+        .switch input:checked ~ .switch-slider {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+        
+        .switch input:checked ~ .switch-slider::before {
+            transform: translateX(20px);
+            background: white;
+        }
+        
+        .switch input:focus ~ .switch-slider {
+            box-shadow: 0 0 0 3px var(--accent-primary-subtle);
+        }
+        
+        /* Radio Button */
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .radio {
+            position: relative;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .radio input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .radio-mark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 16px;
+            height: 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+        
+        .radio input[type="radio"]:checked ~ .radio-mark {
+            border-color: var(--accent-primary);
+        }
+        
+        .radio input[type="radio"]:focus ~ .radio-mark {
+            box-shadow: 0 0 0 3px var(--accent-primary-subtle);
+        }
+        
+        .radio-mark::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            transition: var(--transition);
+        }
+        
+        .radio input[type="radio"]:checked ~ .radio-mark::after {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        
+        /* List Items */
+        .list {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+        
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-primary);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+        
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .list-item:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .list-item.active {
+            background: var(--accent-primary-subtle);
+            border-left: 3px solid var(--accent-primary);
+        }
+        
+        .list-item-icon {
+            width: 16px;
+            height: 16px;
+            color: var(--text-muted);
+        }
+        
+        .list-item-content {
+            flex: 1;
+        }
+        
+        .list-item-title {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            margin: 0;
+        }
+        
+        .list-item-subtitle {
+            font-size: var(--font-size-xs);
+            color: var(--text-muted);
+            margin: 2px 0 0 0;
+        }
+        
+        /* Cards */
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--border-radius-lg);
+            overflow: hidden;
+            transition: var(--transition);
+        }
+        
+        .card:hover {
+            border-color: var(--border-secondary);
+            box-shadow: var(--shadow);
+        }
+        
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-primary);
+            background: var(--bg-tertiary);
+        }
+        
+        .card-title {
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            margin: 0;
+        }
+        
+        .card-content {
+            padding: 20px;
+        }
+        
+        .card-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-primary);
+            background: var(--bg-tertiary);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
+            border-radius: 12px;
+        }
+        
+        .badge-primary {
+            background: var(--accent-primary-muted);
+            color: var(--accent-primary);
+        }
+        
+        .badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-success);
+        }
+        
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-warning);
+        }
+        
+        .badge-error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-error);
+        }
+        
+        /* Progress Bar */
+        .progress {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-surface);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+        
+        /* Tabs */
+        .tabs {
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .tab-list {
+            display: flex;
+            gap: 0;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        
+        .tab-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+        }
+        
+        .tab-item:hover {
+            color: var(--text-secondary);
+        }
+        
+        .tab-item.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+        
+        /* Dropdown */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 200px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-secondary);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: var(--transition);
+        }
+        
+        .dropdown.active .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .dropdown-item {
+            display: block;
+            padding: 8px 12px;
+            font-size: var(--font-size-sm);
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: var(--transition);
+            border-radius: var(--border-radius-sm);
+            margin: 4px;
+        }
+        
+        .dropdown-item:hover {
+            background: var(--accent-primary-subtle);
+            color: var(--accent-primary);
+        }
+        
+        .dropdown-divider {
+            height: 1px;
+            background: var(--border-primary);
+            margin: 4px 0;
+        }
+        
+        /* Utility Classes */
+        .flex {
+            display: flex;
+        }
+        
+        .flex-col {
+            flex-direction: column;
+        }
+        
+        .items-center {
+            align-items: center;
+        }
+        
+        .justify-between {
+            justify-content: space-between;
+        }
+        
+        .gap-2 {
+            gap: 8px;
+        }
+        
+        .gap-4 {
+            gap: 16px;
+        }
+        
+        .text-xs {
+            font-size: var(--font-size-xs);
+        }
+        
+        .text-sm {
+            font-size: var(--font-size-sm);
+        }
+        
+        .text-muted {
+            color: var(--text-muted);
+        }
+        
+        .font-medium {
+            font-weight: var(--font-weight-medium);
+        }
+        
+        .font-semibold {
+            font-weight: var(--font-weight-semibold);
+        }
+        
+        /* Icons (simple SVG placeholders) */
+        .icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .component-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .demo-container {
+                padding: 24px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <header class="demo-header">
+            <h1 class="demo-title">Modern Dark UI Components</h1>
+            <p class="demo-subtitle">A comprehensive collection of dark theme UI elements</p>
+        </header>
+
+        <section class="demo-section">
+            <h2 class="section-title">Buttons</h2>
+            <div class="component-grid">
+                <div class="component-showcase">
+                    <h3 class="component-title">Button Variants</h3>
+                    <div class="component-demo">
+                        <div class="flex gap-2">
+                            <button class="btn btn-primary">Primary</button>
+                            <button class="btn btn-secondary">Secondary</button>
+                            <button class="btn btn-ghost">Ghost</button>
+                            <button class="btn btn-danger">Danger</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="component-showcase">
+                    <h3 class="component-title">Button Sizes</h3>
+                    <div class="component-demo">
+                        <div class="flex items-center gap-2">
+                            <button class="btn btn-primary btn-sm">Small</button>
+                            <button class="btn btn-primary">Default</button>
+                            <button class="btn btn-primary btn-lg">Large</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="component-showcase">
+                    <h3 class="component-title">Button States</h3>
+                    <div class="component-demo">
+                        <div class="flex gap-2">
+                            <button class="btn btn-primary">Normal</button>
+                            <button class="btn btn-primary" disabled>Disabled</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="demo-section">
+            <h2 class="section-title">Form Elements</h2>
+            <div class="component-grid">
+                <div class="component-showcase">
+                    <h3 class="component-title">Input Fields</h3>
+                    <div class="component-demo">
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-input" placeholder="Enter your email">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-input" placeholder="Enter your password">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Message</label>
+                            <textarea class="form-textarea" placeholder="Enter your message"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="component-showcase">
+                    <h3 class="component-title">Select & Options</h3>
+                    <div class="component-demo">
+                        <div class="form-group">
+                            <label class="form-label">Country</label>
+                            <select class="form-select">
+                                <option>United States</option>
+                                <option>Canada</option>
+                                <option>United Kingdom</option>
+                                <option>Germany</option>
+                            </select>
+                        </div>
+                        
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <div class="radio">
+                                    <input type="radio" name="plan" id="basic" checked>
+                                    <span class="radio-mark"></span>
+                                </div>
+                                <label for="basic">Basic Plan</label>
+                            </div>
+                            <div class="radio-item">
+                                <div class="radio">
+                                    <input type="radio" name="plan" id="pro">
+                                    <span class="radio-mark"></span>
+                                </div>
+                                <label for="pro">Pro Plan</label>
+                            </div>
+                            <div class="radio-item">
+                                <div class="radio">
+                                    <input type="radio" name="plan" id="enterprise">
+                                    <span class="radio-mark"></span>
+                                </div>
+                                <label for="enterprise">Enterprise Plan</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="component-showcase">
+                    <h3 class="component-title">Checkboxes & Switches</h3>
+                    <div class="component-demo">
+                        <div class="checkbox-group">
+                            <div class="checkbox">
+                                <input type="checkbox" id="terms" checked>
+                                <span class="checkbox-mark"></span>
+                            </div>
+                            <label for="terms">I agree to the terms and conditions</label>
+                        </div>
+                        
+                        <div class="checkbox-group">
+                            <div class="checkbox">
+                                <input type="checkbox" id="newsletter">
+                                <span class="checkbox-mark"></span>
+                            </div>
+                            <label for="newsletter">Subscribe to newsletter</label>
+                        </div>
+                        
+                        <div class="flex items-center gap-4">
+                            <span class="text-sm">Notifications</span>
+                            <label class="switch">
+                                <input type="checkbox" checked>
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="demo-section">
+            <h2 class="section-title">Lists & Navigation</h2>
+            <div class="component-grid">
+                <div class="component-showcase">
+                    <h3 class="component-title">List Items</h3>
+                    <div class="list">
+                        <div class="list-item active">
+                            <svg class="list-item-icon icon" viewBox="0 0 24 24">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                            </svg>
+                            <div class="list-item-content">
+                                <p class="list-item-title">Dashboard</p>
+                                <p class="list-item-subtitle">Main overview</p>
+                            </div>
+                            <span class="badge badge-primary">New</span>
+                        </div>
+                        <div class="list-item">
+                            <svg class="list-item-icon icon" viewBox="0 0 24 24">
+                                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            <div class="list-item-content">
+                                <p class="list-item-title">Users</p>
+                                <p class="list-item-subtitle">Manage users</p>
+                            </div>
+                        </div>
+                        <div class="list-item">
+                            <svg class="list-item-icon icon" viewBox="0 0 24 24">
+                                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            <div class="list-item-content">
+                                <p class="list-item-title">Users</p>
+                                <p class="list-item-subtitle">Manage users</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</body>
