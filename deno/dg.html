@@ -339,13 +339,21 @@
             stroke-width: 2;
             fill: none;
             opacity: 0.6;
-            marker-end: url(#arrowhead);
         }
         
-        .link:hover {
+        .link-arrow {
+            fill: #475569;
+            stroke: none;
+        }
+
+        .link-group:hover .link {
             stroke: #00d4ff;
             stroke-width: 3;
             opacity: 1;
+        }
+
+        .link-group:hover .link-arrow {
+            fill: #00d4ff;
         }
         
         .link.highlighted {
@@ -354,10 +362,18 @@
             opacity: 1;
         }
         
+        .link.highlighted + .link-arrow {
+            fill: #fbbf24;
+        }
+        
         .link.shadow {
             stroke: #666;
             stroke-dasharray: 3,3;
             opacity: 0.3;
+        }
+
+        .link.shadow + .link-arrow {
+            fill: #666;
         }
         
         .tooltip {
@@ -676,19 +692,6 @@
             
             document.getElementById('vscodePath').value = config.vscodePath;
             
-            // Create arrow marker definition
-            svg.append("defs").append("marker")
-                .attr("id", "arrowhead")
-                .attr("viewBox", "-0 -5 10 10")
-                .attr("refX", 8) // Lowered to keep arrow tip on the line
-                .attr("refY", 0)
-                .attr("markerWidth", 10) // Increased size
-                .attr("markerHeight", 10)
-                .attr("orient", "auto")
-                .append("path")
-                .attr("d", "M0,-4L8,0L0,4") // Made arrow shape larger
-                .attr("fill", "#475569");
-            
             zoom = d3.zoom()
                 .scaleExtent([0.1, 3])
                 .on("zoom", (event) => {
@@ -884,23 +887,38 @@
                 <div class="view-details">${viewDetails}</div>
             `;
         }
+        
+        function updateLinkAndArrow(selection) {
+            selection.each(function(d) {
+                if (!d.source || !d.target) return;
 
-        function calculateLinkPath(d) {
-            if (!d.source || !d.target) return "";
-            
-            const targetPadding = 65; // ~Half the node width + stroke
-            const dx = d.target.x - d.source.x;
-            const dy = d.target.y - d.source.y;
-            const dr = Math.sqrt(dx * dx + dy * dy);
+                const linkPath = d3.select(this).select('.link');
+                const arrow = d3.select(this).select('.link-arrow');
 
-            if (dr === 0) return ""; 
+                // Calculate arc path
+                const dx = d.target.x - d.source.x;
+                const dy = d.target.y - d.source.y;
+                const dr = Math.sqrt(dx * dx + dy * dy);
+                const pathData = `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+                
+                linkPath.attr('d', pathData);
 
-            // Calculate the new target point that ends just before the node box
-            const targetX = d.target.x - (dx / dr) * targetPadding;
-            const targetY = d.target.y - (dy / dr) * targetPadding;
+                // Position arrow at midpoint
+                const pathNode = linkPath.node();
+                if (pathNode && pathNode.getTotalLength() > 0) {
+                    const midPoint = pathNode.getPointAtLength(pathNode.getTotalLength() / 2);
+                    // Get a point just past the midpoint to calculate the angle
+                    const nextPoint = pathNode.getPointAtLength(pathNode.getTotalLength() / 2 + 1);
+                    const angle = Math.atan2(nextPoint.y - midPoint.y, nextPoint.x - midPoint.x) * (180 / Math.PI);
 
-            return `M${d.source.x},${d.source.y}L${targetX},${targetY}`;
+                    arrow.attr('transform', `translate(${midPoint.x}, ${midPoint.y}) rotate(${angle})`);
+                    arrow.style('display', 'block'); // Make sure it's visible
+                } else {
+                    arrow.style('display', 'none'); // Hide if path is zero length
+                }
+            });
         }
+
 
         function visualizeGraph() {
             const data = Object.keys(filteredData).length > 0 ? filteredData : dependencyData;
@@ -952,8 +970,6 @@
                 });
             });
 
-            // IMPORTANT: Replace link IDs with references to node objects
-            // This is crucial for drawing links correctly without the physics simulation.
             links.forEach(link => {
                 link.source = nodeById.get(link.source);
                 link.target = nodeById.get(link.target);
@@ -961,12 +977,19 @@
             
             loadNodePositions(nodes);
             
-            const linkElements = g.append("g")
-                .selectAll("path")
+            const linkGroups = g.append("g")
+                .attr("class", "links")
+                .selectAll("g")
                 .data(links)
-                .enter().append("path")
-                .attr("class", d => `link ${d.exists ? '' : 'shadow'}`)
-                .attr("stroke-width", 2);
+                .enter().append("g")
+                .attr("class", d => `link-group ${d.exists ? '' : 'shadow'}`);
+
+            linkGroups.append("path")
+                .attr("class", "link");
+
+            linkGroups.append("path")
+                .attr("class", "link-arrow")
+                .attr("d", "M-5,-4L5,0L-5,4");
             
             const nodeElements = g.append("g")
                 .selectAll(".node")
@@ -1002,13 +1025,13 @@
                     selectedNode = null;
                     selectedNodeElement = null;
                     nodeElements.classed("selected", false);
-                    linkElements.classed("highlighted", false);
+                    g.selectAll('.link').classed("highlighted", false);
                     hideNodeContextMenu();
                 } else {
                     selectedNode = d.id;
                     selectedNodeElement = this;
                     nodeElements.classed("selected", n => n.id === d.id);
-                    linkElements.classed("highlighted", l => l.source.id === d.id || l.target.id === d.id);
+                    g.selectAll('.link').classed("highlighted", l => l.source.id === d.id || l.target.id === d.id);
                     showNodeContextMenu(event, d, this);
                 }
             });
@@ -1034,13 +1057,11 @@
                 console.log(`Disabling D3 physics for ${nodes.length} nodes to improve performance.`);
                 simulation = null;
                 nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
-                linkElements.attr("d", calculateLinkPath);
+                linkGroups.call(updateLinkAndArrow);
             } else {
                 const width = +svg.attr("width");
                 const height = +svg.attr("height");
                 
-                // Note: d3.forceLink needs the original ID-based links array to work correctly.
-                // We will re-create it here just for the simulation.
                 const simLinks = links.map(l => ({source: l.source.id, target: l.target.id}));
 
                 simulation = d3.forceSimulation(nodes)
@@ -1060,7 +1081,7 @@
                 }, 10000);
 
                 simulation.on("tick", () => {
-                    linkElements.attr("d", calculateLinkPath);
+                    linkGroups.call(updateLinkAndArrow);
                     nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
                     if (selectedNode && selectedNodeElement) {
                         updateNodeContextMenuPosition();
@@ -1124,7 +1145,6 @@
             setTimeout(() => { if (hasLayoutSaved()) loadLayout(); }, 100);
         }
         
-        // Context Menu Functions and other helpers...
         function viewDependencies(moduleId) {
             const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
             currentView = `dependencies:${moduleId}`;
@@ -1217,7 +1237,7 @@
                 }
             });
             g.selectAll('.node').attr("transform", d => `translate(${d.x},${d.y})`);
-            g.selectAll(".link").attr("d", calculateLinkPath);
+            g.selectAll(".link-group").call(updateLinkAndArrow);
             console.log(`Layout loaded for view: ${currentView}`);
         }
         
@@ -1284,7 +1304,7 @@
                 const zoomTransform = d3.zoomTransform(svg.node());
                 const screenX = (nodeX * zoomTransform.k) + zoomTransform.x;
                 const screenY = (nodeY * zoomTransform.k) + zoomTransform.y;
-                menu.style.left = (screenX + 70) + 'px';
+                menu.style.left = (screenX + 70 + 80) + 'px';
                 menu.style.top = (screenY - 50) + 'px';
             }
         }
@@ -1323,7 +1343,9 @@
                 d.x = event.x;
                 d.y = event.y;
                 d3.select(this).attr("transform", `translate(${d.x},${d.y})`);
-                g.selectAll(".link").attr("d", calculateLinkPath);
+                g.selectAll('.link-group')
+                    .filter(ld => ld.source.id === d.id || ld.target.id === d.id)
+                    .call(updateLinkAndArrow);
                 if (selectedNode === d.id) updateNodeContextMenuPosition();
             }
         }
@@ -1331,8 +1353,8 @@
         function dragended(event, d) {
             if (simulation && !event.active) simulation.alphaTarget(0);
             if (!simulation) {
-                d.fx = null;
-                d.fy = null;
+                d.fx = d.x; // Keep position fixed after dragging in static mode
+                d.fy = d.y;
             }
         }
         
