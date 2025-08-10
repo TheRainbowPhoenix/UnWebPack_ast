@@ -284,9 +284,15 @@
         }
         
         .node.selected rect {
-            fill: #dc2626;
-            stroke: #ef4444;
+            fill: #0c4a6e;
+            stroke: #0ea5e9;
             stroke-width: 3;
+        }
+
+        .node.related rect {
+            stroke: #eab308;
+            stroke-width: 2px;
+            stroke-dasharray: 5, 3;
         }
         
         .node.shadow {
@@ -357,13 +363,13 @@
         }
         
         .link.highlighted {
-            stroke: #fbbf24;
+            stroke: #eab308;
             stroke-width: 3;
             opacity: 1;
         }
         
         .link.highlighted + .link-arrow {
-            fill: #fbbf24;
+            fill: #eab308;
         }
         
         .link.shadow {
@@ -524,7 +530,7 @@
 <body>
     <div class="container">
         <div class="sidebar">
-            <h1>Webpack Analyzer</h1>
+            <h1>UnWebPack</h1>
             
             <div class="upload-area" id="uploadArea">
                 <p style="margin: 10px 0; color: #888;">Drop your 'out' folder or dependency-graph.json here</p>
@@ -621,6 +627,7 @@
                 <button class="zoom-btn" onclick="zoomIn()">+</button>
                 <button class="zoom-btn" onclick="zoomOut()">−</button>
                 <button class="zoom-btn" onclick="resetZoom()">⌂</button>
+                <button id="freezeBtn" class="zoom-btn" onclick="toggleSimulationFreeze()">❄️</button>
             </div>
             <svg id="visualization"></svg>
         </div>
@@ -650,6 +657,8 @@
         let currentView = "all"; // "all", "focus:123", "dependencies:123", "usage:123"
         let showShadowNodes = false;
         let moduleAliases = {};
+        let simulationFrozen = false;
+        let initialHash = window.location.hash;
 
         // super-simple comment stripper (no deps)
         function stripJsoncSimple(raw) {
@@ -1014,13 +1023,14 @@
                 .text(d => d.label || `mod_${d.id}.js`);
             
             nodeElements.append("text").attr("class", "deps").attr("y", 8)
-                .text(d => `${d.dependencies.length} deps`);
+                .text(d => `${dependencyData[d.id] ? dependencyData[d.id].dependencies.length : 0} deps`);
             
             nodeElements.append("text").attr("class", "deps").attr("y", 20)
-                .text(d => `${d.dependents.length} refs`);
+                .text(d => `${dependencyData[d.id] ? dependencyData[d.id].dependents.length : 0} refs`);
             
             nodeElements.on("click", function(event, d) {
                 event.stopPropagation();
+                nodeElements.classed("related", false);
                 if (selectedNode === d.id) {
                     selectedNode = null;
                     selectedNodeElement = null;
@@ -1032,6 +1042,14 @@
                     selectedNodeElement = this;
                     nodeElements.classed("selected", n => n.id === d.id);
                     g.selectAll('.link').classed("highlighted", l => l.source.id === d.id || l.target.id === d.id);
+                    
+                    // Highlight related nodes
+                    const relatedIds = new Set();
+                    if(dependencyData[d.id]) {
+                        dependencyData[d.id].dependencies.forEach(id => relatedIds.add(id));
+                        dependencyData[d.id].dependents.forEach(id => relatedIds.add(id));
+                    }
+                    nodeElements.filter(n => relatedIds.has(n.id)).classed("related", true);
                     showNodeContextMenu(event, d, this);
                 }
             });
@@ -1043,22 +1061,27 @@
                 tooltip.style.left = (event.pageX + 10) + 'px';
                 tooltip.style.top = (event.pageY - 10) + 'px';
                 tooltip.innerHTML = `
-                    <strong>${d.label || d.filename}</strong><br>
-                    Dependencies: ${d.dependencies.join(', ') || 'None'}<br>
-                    Used by: ${d.dependents.join(', ') || 'None'}${d.exists ? '' : '<br><em>Missing file</em>'}
+                    <strong>${d.label ? d.label + " (" +d.filename+")" : d.filename}</strong><br>
+                    Dependencies: ${dependencyData[d.id] ? dependencyData[d.id].dependencies.join(', ') : 'None'}<br>
+                    Used by: ${dependencyData[d.id] ? dependencyData[d.id].dependents.join(', ') : 'None'}${d.exists ? '' : '<br><em>Missing file</em>'}
                 `;
             }).on("mouseout", () => {
                 document.getElementById('tooltip').style.display = 'none';
             });
             
             const disablePhysics = nodes.length > 20;
+            const freezeBtn = document.getElementById('freezeBtn');
 
             if (disablePhysics) {
                 console.log(`Disabling D3 physics for ${nodes.length} nodes to improve performance.`);
                 simulation = null;
+                simulationFrozen = true;
+                freezeBtn.innerHTML = '▶️';
+                freezeBtn.disabled = true;
                 nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
                 linkGroups.call(updateLinkAndArrow);
             } else {
+                freezeBtn.disabled = false;
                 const width = +svg.attr("width");
                 const height = +svg.attr("height");
                 
@@ -1071,11 +1094,13 @@
                     .force("collision", d3.forceCollide(60));
                 
                 setTimeout(() => {
-                    if (simulation) {
+                    if (simulation && !simulationFrozen) {
                         simulation.alphaTarget(0).restart();
                         setTimeout(() => {
                             if (simulation) simulation.stop();
                             console.log("Physics simulation stopped.");
+                            freezeBtn.innerHTML = '▶️';
+                            simulationFrozen = true;
                         }, 2000);
                     }
                 }, 10000);
@@ -1284,6 +1309,7 @@
                 menuHTML += '<div class="context-menu-item separator"></div>';
             }
             menuHTML += `<div class="context-menu-item" onclick="viewDependencies('${nodeData.id}')">View Dependencies</div>`;
+            menuHTML += `<div class="context-menu-item" onclick="highlightModule('${nodeData.id}')">View References</div>`;
             menuHTML += `<div class="context-menu-item" onclick="viewUsage('${nodeData.id}')">View Usage</div>`;
             const menu = document.createElement('div');
             menu.id = 'nodeContextMenu';
@@ -1329,6 +1355,28 @@
             hideNodeContextMenu();
         }
 
+        function toggleSimulationFreeze() {
+            if (!simulation) return; // Can't freeze a non-existent simulation
+
+            const freezeBtn = document.getElementById('freezeBtn');
+            simulationFrozen = !simulationFrozen;
+
+            if (simulationFrozen) {
+                simulation.stop();
+                freezeBtn.innerHTML = '▶️';
+                console.log('Simulation frozen.');
+            } else {
+                // Unstick nodes before restarting
+                simulation.nodes().forEach(d => {
+                    d.fx = null;
+                    d.fy = null;
+                });
+                simulation.alpha(0.5).restart();
+                freezeBtn.innerHTML = '❄️';
+                console.log('Simulation resumed.');
+            }
+        }
+
         // Drag functions
         function dragstarted(event, d) {
             if (simulation && !event.active) simulation.alphaTarget(0.3).restart();
@@ -1355,6 +1403,12 @@
             if (!simulation) {
                 d.fx = d.x; // Keep position fixed after dragging in static mode
                 d.fy = d.y;
+            } else if (simulationFrozen) {
+                d.fx = d.x;
+                d.fy = d.y;
+            } else {
+                d.fx = null;
+                d.fy = null;
             }
         }
         

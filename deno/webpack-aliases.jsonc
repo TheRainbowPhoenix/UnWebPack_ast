@@ -6,6 +6,9 @@
     // "3":"ReactDOM",
     // "245":"classnames",
     "172": "slate_editor", // slate-react/src/components/editor
+    "207": "get_window", // get-window
     "659": "object_assign", // _assign = require('object-assign');
-    "794":"React_production" // React 16.14.0
+    "794":"React_production", // React 16.14.0
+    "881": "get_document", // get-document
+    "882": "needsIEFallback" // get-window/needs-ie-fallback
 }
