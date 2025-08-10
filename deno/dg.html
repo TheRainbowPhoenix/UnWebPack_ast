@@ -634,6 +634,40 @@
         let selectedNodeElement = null;
         let currentView = "all"; // "all", "focus:123", "dependencies:123", "usage:123"
         let showShadowNodes = false;
+        let moduleAliases = {};
+
+        // super-simple comment stripper (no deps)
+        function stripJsoncSimple(raw) {
+          const noBlock = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+          const noLine = noBlock.replace(/(^|[^:])\/\/.*$/gm, "$1");
+          return noLine;
+        }
+
+        async function loadAliases() {
+            try {
+                const response = await fetch('/webpack-aliases.jsonc');
+                if (response.ok) {
+                    const rawText = await response.text();
+                    const cleanJson = stripJsoncSimple(rawText);
+                    moduleAliases = JSON.parse(cleanJson);
+                    console.log("Webpack aliases loaded successfully.");
+                } else {
+                    console.log("webpack-aliases.jsonc not found. Proceeding without aliases.");
+                }
+            } catch (error) {
+                console.error("Error loading or parsing webpack-aliases.jsonc:", error);
+            }
+        }
+
+        function applyAliases() {
+            if (Object.keys(moduleAliases).length === 0) return;
+            Object.values(dependencyData).forEach(module => {
+                if (moduleAliases[module.id]) {
+                    module.label = moduleAliases[module.id];
+                }
+            });
+            console.log("Aliases applied to dependency data.");
+        }
         
         // Set up SVG and zoom
         function initVisualization() {
@@ -774,6 +808,8 @@
                     }
                 });
             });
+
+            applyAliases();
             
             // Hide upload area after data is loaded
             document.getElementById('uploadArea').classList.add('hidden');
@@ -826,6 +862,8 @@
                     }
                 }
             });
+
+            applyAliases();
             
             // Hide upload area after data is loaded
             document.getElementById('uploadArea').classList.add('hidden');
@@ -1033,7 +1071,7 @@
                     link.classed("highlighted", l => l.source.id === d.id || l.target.id === d.id);
                     
                     // Show context menu next to selected node
-                    showNodeContextMenu(d, this);
+                    showNodeContextMenu(event, d, this);
                 }
             });
             
@@ -1159,146 +1197,6 @@
             }, 100);
 
             visualizeGraph();
-        }
-        
-        function visualizeGraph() {
-            const data = Object.keys(filteredData).length > 0 ? filteredData : dependencyData;
-            
-            if (Object.keys(data).length === 0) return;
-            
-            // Clear existing visualization
-            g.selectAll("*").remove();
-            
-            // Prepare nodes and links
-            const nodes = Object.values(data).map(mod => ({
-                id: mod.id,
-                filename: mod.filename,
-                label: mod.label,
-                dependencies: mod.dependencies,
-                dependents: mod.dependents,
-                x: Math.random() * 800,
-                y: Math.random() * 600
-            }));
-            
-            const links = [];
-            Object.values(data).forEach(mod => {
-                mod.dependencies.forEach(depId => {
-                    if (data[depId]) {
-                        links.push({
-                            source: mod.id,
-                            target: depId
-                        });
-                    }
-                });
-            });
-            
-            // Create force simulation
-            const width = +svg.attr("width");
-            const height = +svg.attr("height");
-            
-            simulation = d3.forceSimulation(nodes)
-                .force("link", d3.forceLink(links).id(d => d.id).distance(120))
-                .force("charge", d3.forceManyBody().strength(-300))
-                .force("center", d3.forceCenter(width / 2, height / 2))
-                .force("collision", d3.forceCollide(60))
-                .alphaDecay(0.02) // Slower decay for initial settling
-                .velocityDecay(0.6); // Higher friction for less bouncing
-            
-            // Stop simulation after 10 seconds to allow free dragging
-            setTimeout(() => {
-                simulation.alphaTarget(0).restart();
-                setTimeout(() => {
-                    simulation.stop();
-                    console.log("Physics simulation stopped - nodes can now be freely dragged");
-                }, 2000);
-            }, 10000);
-            
-            // Create links
-            const link = g.append("g")
-                .selectAll("path")
-                .data(links)
-                .enter().append("path")
-                .attr("class", "link")
-                .attr("stroke-width", 2);
-            
-            // Create nodes
-            const node = g.append("g")
-                .selectAll(".node")
-                .data(nodes)
-                .enter().append("g")
-                .attr("class", "node")
-                .call(d3.drag()
-                    .on("start", dragstarted)
-                    .on("drag", dragged)
-                    .on("end", dragended));
-            
-            // Add rectangles to nodes
-            node.append("rect")
-                .attr("width", 120)
-                .attr("height", 60)
-                .attr("x", -60)
-                .attr("y", -30);
-            
-            // Add filename text
-            node.append("text")
-                .attr("class", "filename")
-                .attr("y", -8)
-                .text(d => d.label || `mod_${d.id}.js`);
-            
-            // Add dependency count
-            node.append("text")
-                .attr("class", "deps")
-                .attr("y", 8)
-                .text(d => `${d.dependencies.length} deps`);
-            
-            // Add used by count
-            node.append("text")
-                .attr("class", "deps")
-                .attr("y", 20)
-                .text(d => `${d.dependents.length} refs`);
-            
-            // Add click events
-            node.on("click", function(event, d) {
-                if (selectedNode === d.id) {
-                    selectedNode = null;
-                    node.classed("selected", false);
-                    link.classed("highlighted", false);
-                } else {
-                    selectedNode = d.id;
-                    node.classed("selected", n => n.id === d.id);
-                    
-                    // Highlight related links
-                    link.classed("highlighted", l => l.source.id === d.id || l.target.id === d.id);
-                }
-            });
-            
-            // Add tooltips
-            node.on("mouseover", function(event, d) {
-                const tooltip = document.getElementById('tooltip');
-                tooltip.style.display = 'block';
-                tooltip.style.left = (event.pageX + 10) + 'px';
-                tooltip.style.top = (event.pageY - 10) + 'px';
-                tooltip.innerHTML = `
-                    <strong>${d.filename}</strong><br>
-                    Dependencies: ${d.dependencies.join(', ') || 'None'}<br>
-                    Used by: ${d.dependents.join(', ') || 'None'}
-                `;
-            })
-            .on("mouseout", function() {
-                document.getElementById('tooltip').style.display = 'none';
-            });
-            
-            // Update positions on simulation tick
-            simulation.on("tick", () => {
-                link.attr("d", d => {
-                    const dx = d.target.x - d.source.x;
-                    const dy = d.target.y - d.source.y;
-                    const dr = Math.sqrt(dx * dx + dy * dy);
-                    return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
-                });
-                
-                node.attr("transform", d => `translate(${d.x},${d.y})`);
-            });
         }
         
         // Dependency/Usage View Functions
@@ -1567,7 +1465,7 @@
         }
         
         // Context Menu Functions
-        function showNodeContextMenu(event, nodeData) { // nodeElement
+        function showNodeContextMenu(event, nodeData, nodeElement) {
             hideNodeContextMenu(); // Hide any existing menu
 
             // const menu = document.getElementById('contextMenu');
@@ -1595,23 +1493,25 @@
             // menu.style.top = event.pageY + 'px';
 
             // Position menu relative to the node
-            const nodeTransform = nodeElement.getAttribute('transform');
-            const match = nodeTransform.match(/translate\(([^,]+),([^)]+)\)/);
-            if (match) {
-                const nodeX = parseFloat(match[1]);
-                const nodeY = parseFloat(match[2]);
+            // const nodeTransform = nodeElement.getAttribute('transform');
+            // const match = nodeTransform.match(/translate\(([^,]+),([^)]+)\)/);
+            // if (match) {
+            //     const nodeX = parseFloat(match[1]);
+            //     const nodeY = parseFloat(match[2]);
                 
-                // Get the current zoom transform
-                const zoomTransform = d3.zoomTransform(svg.node());
-                const screenX = (nodeX * zoomTransform.k) + zoomTransform.x;
-                const screenY = (nodeY * zoomTransform.k) + zoomTransform.y;
+            //     // Get the current zoom transform
+            //     const zoomTransform = d3.zoomTransform(svg.node());
+            //     const screenX = (nodeX * zoomTransform.k) + zoomTransform.x;
+            //     const screenY = (nodeY * zoomTransform.k) + zoomTransform.y;
                 
-                // Position menu to the right of the node
-                menu.style.left = (screenX + 70) + 'px';
-                menu.style.top = (screenY - 50) + 'px';
-            }
+            //     // Position menu to the right of the node
+            //     menu.style.left = (screenX + 70 + 180) + 'px';
+            //     menu.style.top = (screenY - 50) + 'px';
+            // }
             
             document.body.appendChild(menu);
+
+            updateNodeContextMenuPosition();
         }
 
         function updateNodeContextMenuPosition() {
@@ -1630,7 +1530,7 @@
                 const screenY = (nodeY * zoomTransform.k) + zoomTransform.y;
                 
                 // Position menu to the right of the node
-                menu.style.left = (screenX + 70) + 'px';
+                menu.style.left = (screenX + 70 + 80) + 'px';
                 menu.style.top = (screenY - 50) + 'px';
             }
         }
@@ -1727,6 +1627,7 @@
         // Initialize
         initVisualization();
         updateLayoutSavedIndicator();
+        loadAliases();
         
         // Export functionality
         function exportData() {

@@ -23,7 +23,7 @@ async function loadAliasesJsonc(filePath: string) {
 }
 
 async function start() {
-  const inFile = "../../flare.rive.app/lib/Nima.75f25c72b5b721e88cb1.js";
+  const inFile = "../../flare.rive.app/lib/vendor.35e6000e3adc89a87857.js";
 
   console.log("Reading files...");
 
@@ -52,7 +52,7 @@ async function start() {
 
     // Use a for...of loop to handle async operations sequentially
     for (const mod of modules) {
-      if (mod.file == null) continue;
+      if (!mod || mod?.file == null) continue;
 
       let code = generator(mod.element.node).code;
 

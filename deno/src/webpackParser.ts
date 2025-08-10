@@ -767,16 +767,26 @@ export default class WebpackParser implements FileParser {
       }
 
       let mod = {
-        file: file,
+        file: this.currentFile,
         element: element,
         i: i,
         deps: depIndex,
       };
       //   console.log("require: ", depIndex);
 
-      this.cleanES6Object(element);
-      this.cleanES6Import(element);
-      this.cleanImports(element);
+      this.normalizeModuleParamNames(element);
+      this.demangleMinifiedBooleans(element);
+      this.demangleVoid0(element);
+      this.normalizeYoda(element);
+
+      const interopName = this.renameInteropHelper(element);
+      this.renameRequireBindings(element, interopName);
+      this.applyRequireAliases(element, interopName);
+      this.renameSingleLetterBindings(element);
+
+      // this.cleanES6Object(element);
+      // this.cleanES6Import(element);
+      // this.cleanImports(element);      
 
       //   console.log(generator(element.node).code);
 
