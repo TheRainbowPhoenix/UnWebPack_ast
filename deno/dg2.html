@@ -139,13 +139,33 @@
             gap: 16px;
         }
         
-        /* Main Content */
+        /* Main Content & Splash Screen */
         .main-content {
             flex: 1;
             background: var(--bg-secondary);
             position: relative;
             display: flex;
             flex-direction: column;
+            align-items: center; /* Center splash content */
+            justify-content: center; /* Center splash content */
+        }
+
+        .splash-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            color: var(--text-muted);
+        }
+
+        .splash-logo {
+            width: 96px;
+            height: 96px;
+        }
+
+        .splash-content {
+            max-width: 290px;
+            text-align: center;
         }
         
         /* Panels */
@@ -175,6 +195,27 @@
             margin: 0;
             font-size: var(--font-size-base);
             font-weight: var(--font-weight-medium);
+        }
+
+        /* Module Panel Header */
+        .panel-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .sort-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+        }
+        
+        .sort-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
         }
         
         /* Upload Area */
@@ -421,9 +462,33 @@
         
         /* Visualization */
         #visualization {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0a0a0a 100%);
+        }
+
+        .drag-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 212, 255, 0.1);
+            border: 2px dashed var(--accent-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .drag-overlay.visible {
+            opacity: 1;
         }
 
         .node {
@@ -643,7 +708,7 @@
     <div class="workbench">
         <!-- Activity Bar -->
         <div class="activity-bar">
-            <div class="activity-item active" data-panel="filter" title="Filters">🔍</div>
+            <div class="activity-item" data-panel="filter" title="Filters">🔍</div>
             <div class="activity-item" data-panel="stats" title="Statistics">📊</div>
             <div class="activity-item" data-panel="layout" title="Layout Control">🎯</div>
             <div class="activity-item" data-panel="advanced" title="Advanced Options">⚙️</div>
@@ -661,15 +726,22 @@
         </div>
         
         <!-- Main Content -->
-        <div class="main-content">
+        <div class="main-content" id="main-content">
+            <svg id="visualization"></svg>
             <div class="zoom-controls">
                 <button class="zoom-btn" onclick="zoomIn()">+</button>
                 <button class="zoom-btn" onclick="zoomOut()">−</button>
                 <button class="zoom-btn" onclick="resetZoom()">⌂</button>
-                <button id="freezeBtn" class="zoom-btn" onclick="toggleSimulationFreeze()">❄️</button>
+                <!-- <button id="freezeBtn" class="zoom-btn" onclick="toggleSimulationFreeze()">❄️</button> -->
             </div>
-            <svg id="visualization"></svg>
         </div>
+    </div>
+
+    <!-- Drag & Drop overlay -->
+    <div class="drag-overlay" id="drag-overlay">
+        <div style="font-size: 24px; font-weight: bold; color: var(--accent-primary);">Drop to load</div>
+        <input type="file" id="folderInput" webkitdirectory multiple>
+        <input type="file" id="jsonInput" accept=".json">
     </div>
 
     <!-- Tooltip & Hidden File Input -->
@@ -677,11 +749,29 @@
     <input type="file" id="layoutFileInput" accept=".json">
 
     <!-- Panel Templates -->
+    <template id="panel-splash">
+        <div class="splash-screen">
+            <svg class="splash-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
+                    <path stroke="var(--accent-primary)" d="m27 60.12l-18 10.38 M68.82 60l18.18 10.5 M48 24V3"/>
+                    <path stroke="var(--accent-secondary)" d="M69 60L48 72l-21-12V36l21-12l21 12z"/>
+                    <path stroke="var(--accent-primary)" d="M87 70.5L48 93L9 70.5v-45L48 3l39 22.5z m-78-45L48 48m39-22.5L48 48m0 0v45"/>
+                </g>
+            </svg>
+            <div class="splash-content">
+                <h2 style="margin: 0 0 8px 0; color: var(--text-primary);">Dependency Analyzer</h2>
+                <p style="margin: 0 0 16px 0;">Load a `dependency-graph.json` or drop a folder to begin.</p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="btn btn-primary" onclick="document.getElementById('jsonInput').click()">📄 Load JSON</button>
+                    <button class="btn btn-primary" onclick="document.getElementById('folderInput').click()">📁 Browse Folder</button>
+                </div>
+            </div>
+        </div>
+    </template>
+    
     <template id="panel-upload">
         <div class="upload-area" id="uploadArea">
             <p style="margin: 10px 0; color: var(--text-muted);">Drop your 'out' folder or dependency-graph.json here</p>
-            <input type="file" id="folderInput" webkitdirectory multiple>
-            <input type="file" id="jsonInput" accept=".json">
             <div style="display: flex; gap: 10px; justify-content: center;">
                 <button class="btn btn-primary" onclick="document.getElementById('folderInput').click()">📁 Browse Folder</button>
                 <button class="btn btn-primary" onclick="document.getElementById('jsonInput').click()">📄 Load JSON</button>
@@ -772,9 +862,10 @@
         const store = createStore({
             ui: {
                 isDataLoaded: false,
-                activePanel: 'filter',
+                activePanel: null,
                 layoutSaved: false,
                 simulationFrozen: false,
+                moduleSortOrder: 'id',
                 currentView: 'all',
             },
             stats: {
@@ -793,20 +884,27 @@
             const { ui, stats, dependencyData, filteredData } = state;
             const sidebar = document.getElementById('sidebar');
             const sidebarContent = document.getElementById('sidebar-content');
+            const mainContent = document.getElementById('main-content');
+
+            // Show splash screen or visualization
+            if (!ui.isDataLoaded) {
+                mainContent.querySelector('#visualization').style.display = 'none';
+                const splashTemplate = document.getElementById('panel-splash');
+                if (!mainContent.querySelector('.splash-screen')) {
+                    mainContent.prepend(splashTemplate.content.cloneNode(true));
+                }
+                sidebar.classList.add('collapsed');
+                return;
+            } else {
+                mainContent.querySelector('#visualization').style.display = 'block';
+                const splash = mainContent.querySelector('.splash-screen');
+                if (splash) splash.remove();
+            }
             
             if (!ui.activePanel) {
                 sidebar.classList.add('collapsed');
             } else {
                 sidebar.classList.remove('collapsed');
-            }
-
-            // Show upload area or panel content
-            if (!ui.isDataLoaded) {
-                const template = document.getElementById('panel-upload');
-                sidebarContent.innerHTML = '';
-                sidebarContent.appendChild(template.content.cloneNode(true));
-                setupUploadListeners(); // Re-attach listeners for upload area
-                return;
             }
 
             // Update Activity Bar
@@ -836,6 +934,22 @@
                         indicator.style.color = ui.layoutSaved ? 'var(--accent-primary)' : 'var(--text-muted)';
                     }
                     if (ui.activePanel === 'modules') {
+                        // sorting
+                        const header = document.createElement('div');
+                        header.className = 'panel-header-actions';
+                        header.innerHTML = `
+                            <select class="form-select btn-small" id="sortOrderSelect" onchange="setSortOrder(this.value)">
+                                <option value="id" ${ui.moduleSortOrder === 'id' ? 'selected' : ''}>Sort by ID</option>
+                                <option value="label" ${ui.moduleSortOrder === 'label' ? 'selected' : ''}>Sort by Label</option>
+                                <option value="deps" ${ui.moduleSortOrder === 'deps' ? 'selected' : ''}>Sort by Deps</option>
+                                <option value="refs" ${ui.moduleSortOrder === 'refs' ? 'selected' : ''}>Sort by Refs</option>
+                                <option value="hasLayout" ${ui.moduleSortOrder === 'hasLayout' ? 'selected' : ''}>Layout Saved</option>
+                                <option value="noLayout" ${ui.moduleSortOrder === 'noLayout' ? 'selected' : ''}>No Layout</option>
+                            </select>
+                        `;
+                        const titleEl = document.getElementById('sidebar-title');
+                        titleEl.parentNode.appendChild(header);
+
                         updateModuleList();
                     }
                     if (ui.activePanel === 'filter') {
@@ -896,6 +1010,8 @@
             initVisualization();
             loadAliases();
             window.addEventListener('hashchange', handleHashChange);
+            setupGlobalDragDrop();
+            setupUploadListeners();
             store.subscribe(render);
         }
 
@@ -905,6 +1021,35 @@
                     const panelId = item.dataset.panel;
                     store.update(state => ({ ...state, ui: { ...state.ui, activePanel: (state.ui.activePanel === panelId ? null : panelId)  } }));
                 });
+            });
+        }
+
+        function setupGlobalDragDrop() {
+            const overlay = document.getElementById('drag-overlay');
+            const doc = document.documentElement;
+
+            doc.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                overlay.classList.add('visible');
+            });
+            
+            overlay.addEventListener('dragover', (e) => e.preventDefault());
+
+            doc.addEventListener('dragleave', (e) => {
+                if (e.relatedTarget === null) {
+                    overlay.classList.remove('visible');
+                }
+            });
+
+            doc.addEventListener('drop', (e) => {
+                e.preventDefault();
+                overlay.classList.remove('visible');
+                const jsonFile = Array.from(e.dataTransfer.files).find(f => f.name.endsWith('.json'));
+                if (jsonFile) {
+                    const reader = new FileReader();
+                    reader.onload = (re) => { try { loadFromJSON(JSON.parse(re.target.result)); } catch (err) { alert('Error parsing JSON file.'); } };
+                    reader.readAsText(jsonFile);
+                }
             });
         }
 
@@ -1316,11 +1461,26 @@
         function updateModuleList() {
             const state = store.get();
             if (state.ui.activePanel !== 'modules' || !state.ui.isDataLoaded) return;
-            const moduleList = document.getElementById('moduleList');
-            if (!moduleList) return;
+            const moduleListEl = document.getElementById('moduleList');
+            if (!moduleListEl) return;
             
-            const modules = Object.values(state.dependencyData).sort((a, b) => parseInt(a.id) - parseInt(b.id));
-            moduleList.innerHTML = modules.map(mod => `
+            let modules = Object.values(state.dependencyData);
+            
+            // Sorting logic
+            const sortOrder = state.ui.moduleSortOrder;
+            modules.sort((a, b) => {
+                switch(sortOrder) {
+                    case 'label': return (a.label || a.filename).localeCompare(b.label || b.filename);
+                    case 'deps': return b.dependencies.length - a.dependencies.length;
+                    case 'refs': return b.dependents.length - a.dependents.length;
+                    case 'hasLayout': return hasLayoutSaved(b.id) - hasLayoutSaved(a.id);
+                    case 'noLayout': return hasLayoutSaved(a.id) - hasLayoutSaved(b.id);
+                    case 'id':
+                    default: return parseInt(a.id) - parseInt(b.id);
+                }
+            });
+            
+            moduleListEl.innerHTML = modules.map(mod => `
                 <div class="module-item" data-id="${mod.id}" onclick="highlightModule('${mod.id}')">
                     <div>
                         <div class="module-name">${mod.label || mod.filename}</div>
@@ -1328,6 +1488,11 @@
                     </div>
                     ${hasLayoutSaved(mod.id) ? '<div class="module-indicator"></div>' : ''}
                 </div>`).join('');
+        }
+
+        function setSortOrder(order) {
+            store.update(s => ({ ...s, ui: { ...s.ui, moduleSortOrder: order }}));
+            updateModuleList(); // Re-render the list with the new order
         }
         
         function filterModules() {
@@ -1563,6 +1728,7 @@
 
         // Drag functions
         function dragstarted(event, d) {
+            hideNodeContextMenu(); // Hide on drag start
             d3.select(this).raise();
             /*
             const isFrozen = !store.get().ui.simulationFrozen;

@@ -1,7 +1,11 @@
-# UWP - UnWebPack
+<h1 align="center">
+  <img src="docs/UwP.svg#gh-light-mode-only" width="300px"/><br/>
+  <img src="docs/UwP.svg#gh-dark-mode-only" width="300px"/><br/>
+</h1>
+<p align="center">A simple <b>webPack Unpacker</b> to study bundles.<br/><br/>
 
-A simple tool to slice out (and clean some) content of webpack bundled js.
-Mainly useful for webapp analysis and RE. Tool I use a lot.
+<p align="center">Tool to slice out (and clean some) content of webpack bundled js.
+Mainly useful for webapp analysis and RE. I use it a lot.</p>
 
 It made it easier to copy paste chunk to LLM and ask them what the lib is (try this with chatGPT, pretending it's a game like `small game ! Can you guess from which js library that was compiled ? <CODE HERE>` and it should work)
 
