@@ -549,7 +549,7 @@
             <div class="controls">
                 <h2>Filters</h2>
                 <input type="text" id="searchInput" placeholder="Search modules..." onkeyup="filterModules()">
-                <input type="text" id="focusInput" placeholder="Focus on module (e.g., 245)" onkeyup="focusModule()">
+                <input type="text" id="focusInput" placeholder="Focus on module (e.g., 245)" onkeyup="setFocusHash(event)">
             </div>
             
             <div class="current-view-info" id="currentViewInfo">
@@ -659,6 +659,7 @@
         let moduleAliases = {};
         let simulationFrozen = false;
         let initialHash = window.location.hash;
+
 
         // super-simple comment stripper (no deps)
         function stripJsoncSimple(raw) {
@@ -808,12 +809,6 @@
             });
 
             await postDataLoad();
-            /* await applyAliases();
-            document.getElementById('uploadArea').classList.add('hidden');
-            updateStats();
-            updateModuleList();
-            updateCurrentViewInfo();
-            visualizeGraph(); */
         }
         
         async function loadFromJSON(jsonData) {
@@ -852,13 +847,6 @@
             });
             
             await postDataLoad();
-            
-            /* await applyAliases();
-            document.getElementById('uploadArea').classList.add('hidden');
-            updateStats();
-            updateModuleList();
-            updateCurrentViewInfo();
-            visualizeGraph(); */
         }
 
         async function postDataLoad() {
@@ -908,6 +896,10 @@
                 const level = document.getElementById('recursiveLevel').value;
                 viewType = `Usage: Module ${moduleId}`;
                 viewDetails = `Showing ${level} level${level > 1 ? 's' : ''} of usage`;
+            } else if (currentView.startsWith('refs:')) {
+                const moduleId = currentView.split(':')[1];
+                viewType = `Usage refs: Module ${moduleId}`;
+                viewDetails = 'Showing a tree of all modules that depend on this one';
             }
             
             info.innerHTML = `
@@ -922,12 +914,16 @@
 
                 const linkPath = d3.select(this).select('.link');
                 const arrow = d3.select(this).select('.link-arrow');
+                const isTreeView = currentView.startsWith('refs:');
 
                 // Calculate arc path
                 const dx = d.target.x - d.source.x;
                 const dy = d.target.y - d.source.y;
                 const dr = Math.sqrt(dx * dx + dy * dy);
-                const pathData = `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+
+                const pathData = isTreeView ? 
+                    `M ${d.source.x} ${d.source.y} C ${d.source.x + dr/2} ${d.source.y}, ${d.target.x - dr/2} ${d.target.y}, ${d.target.x} ${d.target.y}`
+                    : `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
                 
                 linkPath.attr('d', pathData);
 
@@ -940,9 +936,9 @@
                     const angle = Math.atan2(nextPoint.y - midPoint.y, nextPoint.x - midPoint.x) * (180 / Math.PI);
 
                     arrow.attr('transform', `translate(${midPoint.x}, ${midPoint.y}) rotate(${angle})`);
-                    arrow.style('display', 'block'); // Make sure it's visible
+                    arrow.style('display', 'block');
                 } else {
-                    arrow.style('display', 'none'); // Hide if path is zero length
+                    arrow.style('display', 'none');
                 }
             });
         }
@@ -1003,7 +999,9 @@
                 link.target = nodeById.get(link.target);
             });
             
+            // if (!currentView.startsWith('refs:')) {
             loadNodePositions(nodes);
+            // }
             
             const linkGroups = g.append("g")
                 .attr("class", "links")
@@ -1088,7 +1086,8 @@
                 document.getElementById('tooltip').style.display = 'none';
             });
             
-            const disablePhysics = nodes.length > 20;
+            const isTreeView = currentView.startsWith('refs:');
+            const disablePhysics = nodes.length > 20 || isTreeView;
             const freezeBtn = document.getElementById('freezeBtn');
 
             if (disablePhysics) {
@@ -1224,6 +1223,23 @@
                         filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId));
                     }
                 });
+            } else if (viewType === 'refs' && dependencyData[moduleId]) {
+                const { nodes, links, levels } = buildRefsChain(moduleId);
+                filteredData = nodes;
+
+                const columnWidth = 250;
+                const rowHeight = 100;
+                const containerHeight = svg.node().getBoundingClientRect().height;
+
+                levels.forEach((nodesInLevel, level) => {
+                    const yOffset = (containerHeight - (nodesInLevel.length - 1) * rowHeight) / 2;
+                    nodesInLevel.forEach((id, i) => {
+                        if (filteredData[id]) {
+                            filteredData[id].x = level * columnWidth + 150;
+                            filteredData[id].y = i * rowHeight + yOffset;
+                        }
+                    });
+                });
             } else {
                 currentView = 'all';
                 filteredData = {};
@@ -1231,6 +1247,7 @@
             
             updateCurrentViewInfo();
             visualizeGraph();
+            // setTimeout(() => { if (!currentView.startsWith('refs:') && hasLayoutSaved()) loadLayout(); }, 100);
             setTimeout(() => { if (hasLayoutSaved()) loadLayout(); }, 100);
         }
         
@@ -1246,6 +1263,41 @@
         function viewUsage(moduleId) {
             currentView = `usage:${moduleId}`;
             window.location.hash = currentView;
+        }
+
+        function viewRefs(moduleId) { window.location.hash = 'refs:' + moduleId; }
+
+        function buildRefsChain(rootId) {
+            const nodes = {};
+            const links = [];
+            const levels = new Map();
+            const visited = new Set();
+            const queue = [{ id: rootId, level: 0 }];
+
+            visited.add(rootId);
+
+            while (queue.length > 0) {
+                const { id, level } = queue.shift();
+                
+                if (!levels.has(level)) levels.set(level, []);
+                levels.get(level).push(id);
+
+                const node = dependencyData[id];
+                if (node) {
+                    nodes[id] = { ...node };
+                    node.dependents.forEach(depId => {
+                        if (dependencyData[depId]) {
+                            if (!visited.has(depId)) {
+                                visited.add(depId);
+                                queue.push({ id: depId, level: level + 1 });
+                            }
+                            // The dependency link is reversed for the chain view
+                            links.push({ source: id, target: depId, exists: true });
+                        }
+                    });
+                }
+            }
+            return { nodes, links, levels };
         }
 
         function toggleShadowNodes() {
@@ -1336,9 +1388,10 @@
                 menuHTML += `<div class="context-menu-item" onclick="openFileContent('${nodeData.id}')">Open file content</div>`;
                 menuHTML += '<div class="context-menu-item separator"></div>';
             }
+            menuHTML += `<div class="context-menu-item" onclick="highlightModule('${nodeData.id}')">Focus Item</div>`;
             menuHTML += `<div class="context-menu-item" onclick="viewDependencies('${nodeData.id}')">View Dependencies</div>`;
-            menuHTML += `<div class="context-menu-item" onclick="highlightModule('${nodeData.id}')">View References</div>`;
-            menuHTML += `<div class="context-menu-item" onclick="viewUsage('${nodeData.id}')">View Usage</div>`;
+            menuHTML += `<div class="context-menu-item" onclick="viewRefs('${nodeData.id}')">View References</div>`;
+            // menuHTML += `<div class="context-menu-item" onclick="viewUsage('${nodeData.id}')">View Usage</div>`;
             const menu = document.createElement('div');
             menu.id = 'nodeContextMenu';
             menu.className = 'node-context-menu';

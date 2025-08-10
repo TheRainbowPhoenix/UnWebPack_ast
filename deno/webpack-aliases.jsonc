@@ -36,6 +36,9 @@
     "376": "webpack_runtime_global", // webpack/runtime/global
 
     "355": "lodash_root", // lodash/_root
+    "374": "lodash_pick", // import pick from 'lodash/pick'
+    "885": "basePick", // lodash/_basePick
+    "673": "flatRest", // lodash/_flatRest
     "665": "freeGlobal", // lodash/_freeGlobal
     "395": "isArray", // lodash/isArray
     "495": "isSymbol", // lodash/isSymbol
