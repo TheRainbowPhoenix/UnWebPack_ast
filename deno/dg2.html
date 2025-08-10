@@ -714,6 +714,7 @@
         <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
             <button class="btn btn-secondary" onclick="saveLayout()">💾 Save Layout</button>
             <button class="btn btn-secondary" onclick="loadLayout()">📂 Load Layout</button>
+            <button class="btn btn-secondary" onclick="deleteLayout()">❌ Delete Layout</button>
         </div>
         <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
             <button class="btn btn-secondary btn-small" onclick="exportLayoutJSON()">Export JSON</button>
@@ -790,8 +791,15 @@
         // --- RENDERER ---
         function render(state) {
             const { ui, stats, dependencyData, filteredData } = state;
+            const sidebar = document.getElementById('sidebar');
             const sidebarContent = document.getElementById('sidebar-content');
             
+            if (!ui.activePanel) {
+                sidebar.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+            }
+
             // Show upload area or panel content
             if (!ui.isDataLoaded) {
                 const template = document.getElementById('panel-upload');
@@ -807,46 +815,52 @@
             });
             
             // Update Sidebar Title and Content
-            const panelTemplate = document.getElementById(`panel-${ui.activePanel}`);
-            if (panelTemplate) {
-                const panelInfo = { filter: 'Filters', stats: 'Statistics', layout: 'Layout Control', advanced: 'Advanced Options', modules: 'Modules' };
-                document.getElementById('sidebar-title').textContent = panelInfo[ui.activePanel] || 'UnWebPack';
-                sidebarContent.innerHTML = '';
-                sidebarContent.appendChild(panelTemplate.content.cloneNode(true));
-                
-                // Re-populate dynamic content after injection
-                if (ui.activePanel === 'stats') {
-                    Object.entries(stats).forEach(([key, value]) => {
-                        const el = sidebarContent.querySelector(`[data-stat="${key}"]`);
-                        if (el) el.textContent = value;
-                    });
-                }
-                if (ui.activePanel === 'layout') {
-                    const indicator = document.getElementById('layoutSavedIndicator');
-                    indicator.textContent = ui.layoutSaved ? 'yes' : 'none';
-                    indicator.style.color = ui.layoutSaved ? 'var(--accent-primary)' : 'var(--text-muted)';
-                }
-                if (ui.activePanel === 'modules') {
-                    updateModuleList();
-                }
-                 if (ui.activePanel === 'filter') {
-                    const info = document.getElementById('currentViewInfo');
-                    const [viewType, moduleId] = ui.currentView.split(':');
-                    let viewTitle = 'All Modules', viewDetails = 'Showing complete dependency graph';
-
-                    if (viewType === 'focus' && moduleId) {
-                        viewTitle = `Focus: Module ${moduleId}`;
-                        viewDetails = 'Showing direct dependencies and dependents';
-                    } else if (viewType === 'deps-chain' && moduleId) {
-                        viewTitle = `Dependency Chain: Module ${moduleId}`;
-                        viewDetails = 'Showing a tree of all modules this one depends on';
-                    } else if (viewType === 'refs-chain' && moduleId) {
-                        viewTitle = `References Chain: Module ${moduleId}`;
-                        viewDetails = 'Showing a tree of all modules that depend on this one';
-                    }
+            if (ui.activePanel) {
+                const panelTemplate = document.getElementById(`panel-${ui.activePanel}`);
+                if (panelTemplate) {
+                    const panelInfo = { filter: 'Filters', stats: 'Statistics', layout: 'Layout Control', advanced: 'Advanced Options', modules: 'Modules' };
+                    document.getElementById('sidebar-title').textContent = panelInfo[ui.activePanel] || 'UnWebPack';
+                    sidebarContent.innerHTML = '';
+                    sidebarContent.appendChild(panelTemplate.content.cloneNode(true));
                     
-                    info.innerHTML = `<div class="view-type">${viewTitle}</div><div class="view-details">${viewDetails}</div>`;
+                    // Re-populate dynamic content after injection
+                    if (ui.activePanel === 'stats') {
+                        Object.entries(stats).forEach(([key, value]) => {
+                            const el = sidebarContent.querySelector(`[data-stat="${key}"]`);
+                            if (el) el.textContent = value;
+                        });
+                    }
+                    if (ui.activePanel === 'layout') {
+                        const indicator = document.getElementById('layoutSavedIndicator');
+                        indicator.textContent = ui.layoutSaved ? 'yes' : 'none';
+                        indicator.style.color = ui.layoutSaved ? 'var(--accent-primary)' : 'var(--text-muted)';
+                    }
+                    if (ui.activePanel === 'modules') {
+                        updateModuleList();
+                    }
+                    if (ui.activePanel === 'filter') {
+                        const info = document.getElementById('currentViewInfo');
+                        const [viewType, moduleId] = ui.currentView.split(':');
+                        let viewTitle = 'All Modules', viewDetails = 'Showing complete dependency graph';
+
+                        if (viewType === 'focus' && moduleId) {
+                            viewTitle = `Focus: Module ${moduleId}`;
+                            viewDetails = 'Showing direct dependencies and dependents';
+                        } else if (viewType === 'deps-chain' && moduleId) {
+                            viewTitle = `Dependency Chain: Module ${moduleId}`;
+                            viewDetails = 'Showing a tree of all modules this one depends on';
+                        } else if (viewType === 'refs-chain' && moduleId) {
+                            viewTitle = `References Chain: Module ${moduleId}`;
+                            viewDetails = 'Showing a tree of all modules that depend on this one';
+                        }
+                        
+                        info.innerHTML = `<div class="view-type">${viewTitle}</div><div class="view-details">${viewDetails}</div>`;
+                    }
                 }
+            } else {
+                // If no panel is active, clear the content and title
+                sidebarContent.innerHTML = '';
+                document.getElementById('sidebar-title').textContent = '';
             }
         }
 
@@ -889,7 +903,7 @@
             document.querySelectorAll('.activity-item').forEach(item => {
                 item.addEventListener('click', () => {
                     const panelId = item.dataset.panel;
-                    store.update(state => ({ ...state, ui: { ...state.ui, activePanel: panelId } }));
+                    store.update(state => ({ ...state, ui: { ...state.ui, activePanel: (state.ui.activePanel === panelId ? null : panelId)  } }));
                 });
             });
         }
@@ -1073,7 +1087,8 @@
             const nodeById = new Map();
 
             Object.values(data).forEach(mod => {
-                const node = { ...mod, x: mod.x || Math.random() * 800, y: mod.y || Math.random() * 600 };
+                const node = { ...mod, x: mod.x, y: mod.y }; 
+                // const node = { ...mod, x: mod.x || Math.random() * 800, y: mod.y || Math.random() * 600 };
                 nodes.push(node);
                 nodeById.set(node.id, node);
             });
@@ -1088,8 +1103,6 @@
                 link.source = nodeById.get(link.source);
                 link.target = nodeById.get(link.target);
             });
-            
-            if (!state.ui.currentView.includes('chain')) loadNodePositions(nodes);
 
             const linkGroups = g.append("g").selectAll("g").data(links).enter().append("g").attr("class", "link-group");
             linkGroups.append("path").attr("class", "link");
@@ -1102,6 +1115,12 @@
             nodeElements.append("text").attr("class", "filename").attr("y", -8).text(d => d.label || d.filename);
             nodeElements.append("text").attr("class", "deps").attr("y", 8).text(d => `${state.dependencyData[d.id]?.dependencies.length || 0} deps`);
             nodeElements.append("text").attr("class", "deps").attr("y", 20).text(d => `${state.dependencyData[d.id]?.dependents.length || 0} refs`);
+            
+            if(hasLayoutSaved()) {
+                loadLayout();
+            } else {
+                calculateNodePositions(nodes);
+            }
 
             nodeElements.on("click", function(event, d) {
                 event.stopPropagation();
@@ -1122,29 +1141,176 @@
                 }
             });
 
-            const isTreeView = state.ui.currentView.includes('chain');
-            if (isTreeView) {
-                simulation = null;
-                store.update(s => ({ ...s, ui: { ...s.ui, simulationFrozen: true } }));
-                nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
-                linkGroups.call(updateLinkAndArrow);
+            // Apply calculated positions
+            nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
+            linkGroups.call(updateLinkAndArrow);
+        }
+        
+        function calculateNodePositions(nodes) {
+            const { ui, dependencyData } = store.get();
+            const { currentView } = ui;
+            const [viewType, moduleId] = currentView.split(':');
+            const container = svg.node().getBoundingClientRect();
+
+            if (viewType === 'focus' && dependencyData[moduleId]) {
+                calculateCircularLayout(nodes, moduleId, container);
+            } else if (viewType === 'all') {
+                calculateProviderConsumerLayout(nodes, container);
+            } else if (viewType.includes('chain')) {
+                // Chain views calculate their own positions in handleHashChange
+                // Ensure fx/fy to make draggable from their tree position.
+                nodes.forEach(node => {
+                    node.fx = node.x;
+                    node.fy = node.y;
+                });
             } else {
-                const width = +svg.attr("width"), height = +svg.attr("height");
-                const simLinks = links.map(l => ({ source: l.source.id, target: l.target.id }));
-                
-                // TODO: Make a custom, non force driven position of nodes here ? The idea is to gather on the same area the only one dep/no ref modules, and do it so that modules with high deps are on a opposite side than modules with high refs. The idea is to find a way to properly spread data while keeping it compact.
-                simulation = d3.forceSimulation(nodes)
-                    .force("link", d3.forceLink(simLinks).id(d => d.id).distance(150))
-                    .force("charge", d3.forceManyBody().strength(-400))
-                    .force("center", d3.forceCenter(width / 2, height / 2))
-                    .force("collision", d3.forceCollide(60))
-                    .on("tick", () => {
-                        linkGroups.call(updateLinkAndArrow);
-                        nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
-                    });
-                store.update(s => ({ ...s, ui: { ...s.ui, simulationFrozen: true } }));
-                
+                // Fallback for empty/other views
+                 nodes.forEach(node => {
+                    if (node.x === undefined) node.x = Math.random() * container.width;
+                    if (node.y === undefined) node.y = Math.random() * container.height;
+                });
             }
+        }
+
+        function calculateCircularLayout(nodes, centerId, container) {
+            const nodeMap = new Map(nodes.map(n => [n.id, n]));
+            const distances = new Map();
+            const queue = [{ id: centerId, distance: 0 }];
+            const visited = new Set([centerId]);
+            const levels = [];
+
+            // BFS to find distances
+            while (queue.length > 0) {
+                const { id, distance } = queue.shift();
+                distances.set(id, distance);
+                if (!levels[distance]) levels[distance] = [];
+                levels[distance].push(id);
+
+                const node = store.get().dependencyData[id];
+                if (!node) continue;
+
+                const neighbors = [...(node.dependencies || []), ...(node.dependents || [])];
+                for (const neighborId of neighbors) {
+                    if (nodeMap.has(neighborId) && !visited.has(neighborId)) {
+                        visited.add(neighborId);
+                        queue.push({ id: neighborId, distance: distance + 1 });
+                    }
+                }
+            }
+            
+            // const radiusIncrement = 200;
+            const centerNode = nodeMap.get(centerId);
+            centerNode.x = container.width / 2;
+            centerNode.y = container.height / 2;
+
+            // 3. Position nodes on concentric ellipses
+            for (let i = 1; i < levels.length; i++) {
+                const levelNodes = levels[i].map(id => nodeMap.get(id));
+                
+                // Make ellipses larger for more nodes to prevent cramping
+                const nodeCountFactor = Math.max(1, levelNodes.length / 10);
+                const rx = i * 200 * nodeCountFactor;
+                const ry = i * 140 * nodeCountFactor;
+
+                // Group nodes by their parent(s) to cluster them visually
+                const parentGroups = new Map();
+                levelNodes.forEach(node => {
+                    const parentIds = [...(store.get().dependencyData[node.id]?.dependencies || []), ...(store.get().dependencyData[node.id]?.dependents || [])]
+                        .filter(pId => distances.get(pId) === i - 1)
+                        .sort()
+                        .join(',');
+                    if (!parentGroups.has(parentIds)) parentGroups.set(parentIds, []);
+                    parentGroups.get(parentIds).push(node);
+                });
+
+                parentGroups.forEach(siblingNodes => {
+                    const parentNodes = nodeMap.has(siblingNodes[0].id) ? [...(store.get().dependencyData[siblingNodes[0].id].dependencies || []), ...(store.get().dependencyData[siblingNodes[0].id].dependents || [])]
+                        .map(pId => nodeMap.get(pId)).filter(p => p && distances.get(p.id) === i - 1) : [];
+
+                    let baseAngle = Math.random() * 2 * Math.PI;
+                    if (parentNodes.length > 0) {
+                        baseAngle = parentNodes.reduce((sum, p) => sum + Math.atan2(p.y - centerNode.y, p.x - centerNode.x), 0) / parentNodes.length;
+                    }
+                    
+                    // Fan out siblings around their parent's angle
+                    const siblingAngleSpread = 0.6 / i; // Smaller spread for outer circles
+                    siblingNodes.forEach((node, j) => {
+                        const angle = baseAngle + (j - (siblingNodes.length - 1) / 2) * siblingAngleSpread;
+                        node.x = centerNode.x + rx * Math.cos(angle);
+                        node.y = centerNode.y + ry * Math.sin(angle);
+                    });
+                });
+            }
+        }
+
+        function calculateProviderConsumerLayout(nodes, container) {
+            const fullData = store.get().dependencyData;
+            nodes.forEach(node => {
+                const data = fullData[node.id];
+                if (data) {
+                    node.score = (data.dependents.length) - (data.dependencies.length);
+                } else {
+                    node.score = 0;
+                }
+            });
+
+            const scores = nodes.map(n => n.score).filter(s => s !== undefined);
+            const minScore = Math.min(...scores, 0);
+            const maxScore = Math.max(...scores, 0);
+            
+            const xPadding = 150;
+            const yPadding = 100;
+
+            const xScale = d3.scaleLinear()
+                .domain([minScore, maxScore])
+                .range([xPadding, container.width - xPadding]);
+                
+            nodes.forEach(node => {
+                node.x = xScale(node.score);
+                node.y = container.height / 2; // Start in the middle
+            });
+            
+            // Iterative collision avoidance
+            for (let iteration = 0; iteration < 5; iteration++) {
+                for (let i = 0; i < nodes.length; i++) {
+                    for (let j = i + 1; j < nodes.length; j++) {
+                        const a = nodes[i];
+                        const b = nodes[j];
+                        const dx = Math.abs(a.x - b.x);
+                        const dy = Math.abs(a.y - b.y);
+                        if (dx < 140 && dy < 80) { // Check for overlap
+                            // Push the node with the lower reference count more
+                            const pushStrength = 5;
+                            const aRefs = fullData[a.id]?.dependents.length || 0;
+                            const bRefs = fullData[b.id]?.dependents.length || 0;
+                            if (aRefs > bRefs) {
+                                b.y += pushStrength;
+                            } else {
+                                a.y += pushStrength;
+                            }
+                        }
+                    }
+                }
+            }
+        
+            /*
+            // Bin nodes by x-position to stack them vertically
+            const bins = new Map();
+            nodes.forEach(node => {
+                const binIndex = Math.floor((node.x / container.width) * 20); // 20 bins
+                if (!bins.has(binIndex)) bins.set(binIndex, []);
+                bins.get(binIndex).push(node);
+            });
+            
+            bins.forEach(binNodes => {
+                const totalHeight = (binNodes.length - 1) * 100;
+                const startY = (container.height - totalHeight) / 2;
+                binNodes.forEach((node, i) => {
+                    node.y = startY + i * 100;
+                });
+            });
+
+            */
         }
         
         function updateModuleList() {
@@ -1292,6 +1458,17 @@
             g.selectAll(".link-group").call(updateLinkAndArrow);
         }
 
+        function deleteLayout() {
+            const { currentView } = store.get().ui;
+            localStorage.removeItem(`layout_${currentView}`);
+            
+            // Optional: Reset the layoutSaved flag
+            store.update(s => ({
+                ...s,
+                ui: { ...s.ui, layoutSaved: false }
+            }));
+        }
+
         function loadNodePositions(nodes) {
             const layoutKey = getLayoutKey();
             const savedLayout = localStorage.getItem(layoutKey);
@@ -1347,8 +1524,8 @@
                 const zoomTransform = d3.zoomTransform(svg.node());
                 const screenX = (nodeX * zoomTransform.k) + zoomTransform.x;
                 const screenY = (nodeY * zoomTransform.k) + zoomTransform.y;
-                menu.style.left = (screenX + 80) + 'px';
-                menu.style.top = (screenY - 50) + 'px';
+                menu.style.left = `${screenX + 80}px`;
+                menu.style.top = `${screenY - 20}px`;
             }
         }
 
@@ -1371,6 +1548,7 @@
         }
 
         function toggleSimulationFreeze() {
+            /*
             if (!simulation) return;
             const isFrozen = !store.get().ui.simulationFrozen;
             store.update(s => ({ ...s, ui: { ...s.ui, simulationFrozen: isFrozen } }));
@@ -1380,26 +1558,32 @@
                 simulation.nodes().forEach(d => { d.fx = null; d.fy = null; });
                 simulation.alpha(0.5).restart();
             }
+                */
         }
 
         // Drag functions
         function dragstarted(event, d) {
+            d3.select(this).raise();
+            /*
             const isFrozen = !store.get().ui.simulationFrozen;
             if (simulation && !event.active && !isFrozen) simulation.alphaTarget(0.3).restart();
+            */
             d.fx = d.x; d.fy = d.y;
         }
         
         function dragged(event, d) {
             d.fx = event.x; d.fy = event.y;
-            const isFrozen = !store.get().ui.simulationFrozen;
-            if (!simulation || isFrozen) {
+            // const isFrozen = !store.get().ui.simulationFrozen;
+            // if (!simulation || isFrozen) {
                 d.x = event.x; d.y = event.y;
                 d3.select(this).attr("transform", `translate(${d.x},${d.y})`);
                 g.selectAll('.link-group').filter(ld => ld.source.id === d.id || ld.target.id === d.id).call(updateLinkAndArrow);
-            }
+            // }
         }
         
         function dragended(event, d) {
+            d.fx = d.x; d.fy = d.y;
+            /*
             const isFrozen = !store.get().ui.simulationFrozen;
             if (simulation && !event.active && !isFrozen) simulation.alphaTarget(0);
             if (isFrozen || !simulation) {
@@ -1407,12 +1591,13 @@
             } else {
                 d.fx = null; d.fy = null;
             }
+            */
         }
         
         // Zoom controls
-        function zoomIn() { svg.transition().call(zoom.scaleBy, 1.5); }
-        function zoomOut() { svg.transition().call(zoom.scaleBy, 0.67); }
-        function resetZoom() { svg.transition().call(zoom.transform, d3.zoomIdentity); }
+        function zoomIn() { svg.transition().duration(200).call(zoom.scaleBy, 1.5); }
+        function zoomOut() { svg.transition().duration(200).call(zoom.scaleBy, 0.67); }
+        function resetZoom() { svg.transition().duration(200).call(zoom.transform, d3.zoomIdentity); }
         
         // --- INITIALIZE ---
         init();
