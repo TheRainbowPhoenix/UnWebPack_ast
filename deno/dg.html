@@ -400,7 +400,7 @@
             background: rgba(20,20,20,0.95);
             border: 1px solid #444;
             border-radius: 8px;
-            padding: 8px 0;
+            padding: 4px 0;
             min-width: 180px;
             z-index: 2000;
             backdrop-filter: blur(10px);
@@ -417,8 +417,11 @@
             color: #ffffff;
             cursor: pointer;
             font-size: 14px;
-            transition: background 0.2s ease;
-            border-bottom: 1px solid #333;
+            background-color: transparent;
+            transition: color 0.2s ease, background-color 0.2s ease;
+            margin: 0 4px;
+            border-radius: 4px;
+            /* border-bottom: 1px solid #333; */
         }
         
         .context-menu-item:last-child {
@@ -426,7 +429,7 @@
         }
         
         .context-menu-item:hover {
-            background: #00d4ff20;
+            background-color: #00d4ff20;
             color: #00d4ff;
         }
         
@@ -886,11 +889,10 @@
                 const moduleId = currentView.split(':')[1];
                 viewType = `Focus: Module ${moduleId}`;
                 viewDetails = 'Showing direct dependencies and dependents';
-            } else if (currentView.startsWith('dependencies:')) {
+            } else if (currentView.startsWith('deps:')) {
                 const moduleId = currentView.split(':')[1];
-                const level = document.getElementById('recursiveLevel').value;
-                viewType = `Dependencies: Module ${moduleId}`;
-                viewDetails = `Showing ${level} level${level > 1 ? 's' : ''} of dependencies`;
+                viewType = `Dependency Chain: Module ${moduleId}`;
+                viewDetails = 'Showing a tree of all modules this one depends on';
             } else if (currentView.startsWith('usage:')) {
                 const moduleId = currentView.split(':')[1];
                 const level = document.getElementById('recursiveLevel').value;
@@ -898,7 +900,7 @@
                 viewDetails = `Showing ${level} level${level > 1 ? 's' : ''} of usage`;
             } else if (currentView.startsWith('refs:')) {
                 const moduleId = currentView.split(':')[1];
-                viewType = `Usage refs: Module ${moduleId}`;
+                viewType = `References Chain: Module ${moduleId}`;
                 viewDetails = 'Showing a tree of all modules that depend on this one';
             }
             
@@ -1086,7 +1088,7 @@
                 document.getElementById('tooltip').style.display = 'none';
             });
             
-            const isTreeView = currentView.startsWith('refs:');
+            const isTreeView = currentView.startsWith('refs:')  || currentView.startsWith('deps:');
             const disablePhysics = nodes.length > 20 || isTreeView;
             const freezeBtn = document.getElementById('freezeBtn');
 
@@ -1189,22 +1191,23 @@
                         filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId));
                     }
                 });
-            } else if (viewType === 'dependencies' && dependencyData[moduleId]) {
-                const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
-                const relatedIds = new Set();
-                function addDependenciesRecursive(id, level) {
-                    if (level > recursiveLevel || !dependencyData[id]) return;
-                    relatedIds.add(id);
-                    if (dependencyData[id]) {
-                        dependencyData[id].dependencies.forEach(depId => addDependenciesRecursive(depId, level + 1));
-                    }
-                }
-                addDependenciesRecursive(moduleId, 1);
-                relatedIds.forEach(id => {
-                    if (dependencyData[id]) {
-                        filteredData[id] = { ...dependencyData[id] };
-                        filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId) || showShadowNodes);
-                    }
+            } else if (viewType === 'deps' && dependencyData[moduleId]) {
+                const { nodes, levels } = buildDepsChain(moduleId);
+                filteredData = nodes;
+
+                const columnWidth = 250;
+                const rowHeight = 100;
+                const containerHeight = svg.node().getBoundingClientRect().height;
+                const maxLevel = Math.max(...levels.keys());
+
+                levels.forEach((nodesInLevel, level) => {
+                    const yOffset = (containerHeight - (nodesInLevel.length - 1) * rowHeight) / 2;
+                    nodesInLevel.forEach((id, i) => {
+                        if (filteredData[id]) {
+                            filteredData[id].x = (maxLevel - level) * columnWidth + 150;
+                            filteredData[id].y = i * rowHeight + yOffset;
+                        }
+                    });
                 });
             } else if (viewType === 'usage' && dependencyData[moduleId]) {
                 const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
@@ -1224,7 +1227,7 @@
                     }
                 });
             } else if (viewType === 'refs' && dependencyData[moduleId]) {
-                const { nodes, links, levels } = buildRefsChain(moduleId);
+                const { nodes, levels } = buildRefsChain(moduleId);
                 filteredData = nodes;
 
                 const columnWidth = 250;
@@ -1255,8 +1258,8 @@
             window.location.hash = 'focus:' + moduleId;
         }
         
-        function viewDependencies(moduleId) {
-            currentView = `dependencies:${moduleId}`;
+        function viewDeps(moduleId) {
+            currentView = `deps:${moduleId}`;
             window.location.hash = currentView;
         }
         
@@ -1298,6 +1301,30 @@
                 }
             }
             return { nodes, links, levels };
+        }
+
+        function buildDepsChain(rootId) {
+            const nodes = {};
+            const levels = new Map();
+            const visited = new Set();
+            const queue = [{ id: rootId, level: 0 }];
+            visited.add(rootId);
+            while (queue.length > 0) {
+                const { id, level } = queue.shift();
+                if (!levels.has(level)) levels.set(level, []);
+                levels.get(level).push(id);
+                const node = dependencyData[id];
+                if (node) {
+                    nodes[id] = { ...node };
+                    node.dependencies.forEach(depId => {
+                        if (dependencyData[depId] && !visited.has(depId)) {
+                            visited.add(depId);
+                            queue.push({ id: depId, level: level + 1 });
+                        }
+                    });
+                }
+            }
+            return { nodes, levels };
         }
 
         function toggleShadowNodes() {
@@ -1389,7 +1416,7 @@
                 menuHTML += '<div class="context-menu-item separator"></div>';
             }
             menuHTML += `<div class="context-menu-item" onclick="highlightModule('${nodeData.id}')">Focus Item</div>`;
-            menuHTML += `<div class="context-menu-item" onclick="viewDependencies('${nodeData.id}')">View Dependencies</div>`;
+            menuHTML += `<div class="context-menu-item" onclick="viewDeps('${nodeData.id}')">View Dependencies</div>`;
             menuHTML += `<div class="context-menu-item" onclick="viewRefs('${nodeData.id}')">View References</div>`;
             // menuHTML += `<div class="context-menu-item" onclick="viewUsage('${nodeData.id}')">View Usage</div>`;
             const menu = document.createElement('div');
