@@ -807,12 +807,13 @@
                 });
             });
 
-            await applyAliases();
+            await postDataLoad();
+            /* await applyAliases();
             document.getElementById('uploadArea').classList.add('hidden');
             updateStats();
             updateModuleList();
             updateCurrentViewInfo();
-            visualizeGraph();
+            visualizeGraph(); */
         }
         
         async function loadFromJSON(jsonData) {
@@ -850,12 +851,30 @@
                 }
             });
             
-            await applyAliases();
+            await postDataLoad();
+            
+            /* await applyAliases();
             document.getElementById('uploadArea').classList.add('hidden');
             updateStats();
             updateModuleList();
             updateCurrentViewInfo();
-            visualizeGraph();
+            visualizeGraph(); */
+        }
+
+        async function postDataLoad() {
+            await applyAliases();
+            document.getElementById('uploadArea').classList.add('hidden');
+            updateStats();
+            updateModuleList();
+            
+            if (initialHash) {
+                // If a hash was present on page load, apply it now that we have data
+                window.location.hash = initialHash;
+                initialHash = null; // Consume it
+                handleHashChange(); // Manually trigger the first time
+            } else {
+                handleHashChange(); // Or just render the default view
+            }
         }
         
         function updateStats() {
@@ -1139,85 +1158,94 @@
                 item.style.display = item.textContent.toLowerCase().includes(searchTerm) ? 'flex' : 'none';
             });
         }
-        
-        function focusModule() {
-            const focusTerm = document.getElementById('focusInput').value.trim();
-            if (!focusTerm) {
-                filteredData = {};
-                currentView = "all";
+
+        function setFocusHash(event) {
+            const focusTerm = event.target.value.trim();
+            if (focusTerm) {
+                window.location.hash = 'focus:' + focusTerm;
             } else {
-                const targetModule = dependencyData[focusTerm];
-                if (!targetModule) {
-                    filteredData = {};
-                    currentView = "all";
-                } else {
-                    currentView = `focus:${focusTerm}`;
-                    filteredData = {};
-                    const relatedIds = new Set([focusTerm]);
-                    targetModule.dependencies.forEach(depId => { if (dependencyData[depId]) relatedIds.add(depId); });
-                    targetModule.dependents.forEach(depId => { if (dependencyData[depId]) relatedIds.add(depId); });
-                    
-                    relatedIds.forEach(id => {
-                        if (dependencyData[id]) {
-                            filteredData[id] = { ...dependencyData[id] };
-                            filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId));
-                        }
-                    });
-                }
+                window.location.hash = 'all';
             }
+        }
+        
+        function handleHashChange() {
+            if (Object.keys(dependencyData).length === 0) {
+                // Data not loaded yet, do nothing.
+                return;
+            }
+
+            const hash = window.location.hash.substring(1);
+            const [viewType, moduleId] = hash.split(':');
+            currentView = hash || 'all';
+
+            filteredData = {};
+            if (viewType === 'focus' && dependencyData[moduleId]) {
+                const targetModule = dependencyData[moduleId];
+                const relatedIds = new Set([moduleId]);
+                targetModule.dependencies.forEach(depId => { if (dependencyData[depId]) relatedIds.add(depId); });
+                targetModule.dependents.forEach(depId => { if (dependencyData[depId]) relatedIds.add(depId); });
+                relatedIds.forEach(id => {
+                    if (dependencyData[id]) {
+                        filteredData[id] = { ...dependencyData[id] };
+                        filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId));
+                    }
+                });
+            } else if (viewType === 'dependencies' && dependencyData[moduleId]) {
+                const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
+                const relatedIds = new Set();
+                function addDependenciesRecursive(id, level) {
+                    if (level > recursiveLevel || !dependencyData[id]) return;
+                    relatedIds.add(id);
+                    if (dependencyData[id]) {
+                        dependencyData[id].dependencies.forEach(depId => addDependenciesRecursive(depId, level + 1));
+                    }
+                }
+                addDependenciesRecursive(moduleId, 1);
+                relatedIds.forEach(id => {
+                    if (dependencyData[id]) {
+                        filteredData[id] = { ...dependencyData[id] };
+                        filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId) || showShadowNodes);
+                    }
+                });
+            } else if (viewType === 'usage' && dependencyData[moduleId]) {
+                const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
+                const relatedIds = new Set();
+                function addUsageRecursive(id, level) {
+                    if (level > recursiveLevel || !dependencyData[id]) return;
+                    relatedIds.add(id);
+                    if (dependencyData[id]) {
+                        dependencyData[id].dependents.forEach(depId => addUsageRecursive(depId, level + 1));
+                    }
+                }
+                addUsageRecursive(moduleId, 1);
+                relatedIds.forEach(id => {
+                    if (dependencyData[id]) {
+                        filteredData[id] = { ...dependencyData[id] };
+                        filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId));
+                    }
+                });
+            } else {
+                currentView = 'all';
+                filteredData = {};
+            }
+            
             updateCurrentViewInfo();
             visualizeGraph();
             setTimeout(() => { if (hasLayoutSaved()) loadLayout(); }, 100);
+        }
+        
+        function focusModule() {
+            window.location.hash = 'focus:' + moduleId;
         }
         
         function viewDependencies(moduleId) {
-            const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
             currentView = `dependencies:${moduleId}`;
-            filteredData = {};
-            const relatedIds = new Set();
-            function addDependenciesRecursive(id, level) {
-                if (level > recursiveLevel || !dependencyData[id]) return;
-                relatedIds.add(id);
-                if (dependencyData[id]) {
-                    dependencyData[id].dependencies.forEach(depId => addDependenciesRecursive(depId, level + 1));
-                }
-            }
-            addDependenciesRecursive(moduleId, 1);
-            relatedIds.forEach(id => {
-                if (dependencyData[id]) {
-                    filteredData[id] = { ...dependencyData[id] };
-                    filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId) || showShadowNodes);
-                }
-            });
-            updateCurrentViewInfo();
-            hideNodeContextMenu();
-            visualizeGraph();
-            setTimeout(() => { if (hasLayoutSaved()) loadLayout(); }, 100);
+            window.location.hash = currentView;
         }
         
         function viewUsage(moduleId) {
-            const recursiveLevel = parseInt(document.getElementById('recursiveLevel').value);
             currentView = `usage:${moduleId}`;
-            filteredData = {};
-            const relatedIds = new Set();
-            function addUsageRecursive(id, level) {
-                if (level > recursiveLevel || !dependencyData[id]) return;
-                relatedIds.add(id);
-                if (dependencyData[id]) {
-                    dependencyData[id].dependents.forEach(depId => addUsageRecursive(depId, level + 1));
-                }
-            }
-            addUsageRecursive(moduleId, 1);
-            relatedIds.forEach(id => {
-                if (dependencyData[id]) {
-                    filteredData[id] = { ...dependencyData[id] };
-                    filteredData[id].dependencies = filteredData[id].dependencies.filter(depId => relatedIds.has(depId));
-                }
-            });
-            updateCurrentViewInfo();
-            hideNodeContextMenu();
-            visualizeGraph();
-            setTimeout(() => { if (hasLayoutSaved()) loadLayout(); }, 100);
+            window.location.hash = currentView;
         }
 
         function toggleShadowNodes() {
@@ -1295,7 +1323,7 @@
             document.querySelectorAll('.module-item').forEach(item => item.classList.remove('highlighted'));
             document.querySelector(`[data-id="${moduleId}"]`).classList.add('highlighted');
             document.getElementById('focusInput').value = moduleId;
-            focusModule();
+            window.location.hash = 'focus:' + moduleId;
         }
         
         function showNodeContextMenu(event, nodeData, nodeElement) {
@@ -1387,7 +1415,7 @@
         function dragged(event, d) {
             d.fx = event.x;
             d.fy = event.y;
-            if (!simulation) {
+            if (!simulation || simulationFrozen) {
                 d.x = event.x;
                 d.y = event.y;
                 d3.select(this).attr("transform", `translate(${d.x},${d.y})`);
@@ -1400,11 +1428,8 @@
         
         function dragended(event, d) {
             if (simulation && !event.active) simulation.alphaTarget(0);
-            if (!simulation) {
-                d.fx = d.x; // Keep position fixed after dragging in static mode
-                d.fy = d.y;
-            } else if (simulationFrozen) {
-                d.fx = d.x;
+            if (simulationFrozen || !simulation) {
+                d.fx = d.x; // Keep position fixed after dragging
                 d.fy = d.y;
             } else {
                 d.fx = null;
@@ -1421,6 +1446,7 @@
         initVisualization();
         updateLayoutSavedIndicator();
         loadAliases();
+        window.addEventListener('hashchange', handleHashChange);
     </script>
 </body>
 </html>
