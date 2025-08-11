@@ -32,6 +32,10 @@ Good, you can now go explore. Have fun.
 Additionally, you can generate some json to browse the dependencies. It is bad but works : `deno task graph`.
 It will generate `dependency-graph.json`. Rename it to whatever, then you can use the "dg.html" to open and view its content. It's nice. It should help a bit.
 
+## Generate from existing lib
+
+You can also generate mapping from existing library, doing `deno task source` whil putting your library sourcecode on the "tests" folder. For now it's not well tested, but worked against lodash.
+
 ## Auto name imports
 Take a look at `webpack-aliases.jsonc`. Basically a JSON with comments, where you can drop the chunk id and the name of the var :
 ```jsonc

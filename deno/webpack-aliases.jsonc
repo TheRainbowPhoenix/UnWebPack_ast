@@ -45,6 +45,14 @@
     "441": "baseGetTag", // lodash/_baseGetTag
     "408": "isObjectLike", // lodash/isObjectLike
     "458": "Symbol", // lodash/_Symbol
+    "886": "basePickBy", // lodash/_basePickBy
     "888": "getRawTag", // lodash/_getRawTag
+    "674": "arrayLikeKeys", // lodash/_arrayLikeKeys
+    "917": "hasIn", // lodash/hasIn
+    "918": "baseHasIn", // lodash/baseHasIn
+    "919": "_hasPath", // lodash/_hasPath
+    "920": "_baseIsArguments", // lodash/_baseIsArguments
+    "923": "_isFlattenable", // lodash/_isFlattenable
+    "440": "castPath", // lodash/_castPath
     "889": "objectToString" // lodash/_getRawTag
 }
